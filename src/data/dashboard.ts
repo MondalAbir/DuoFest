@@ -1,0 +1,97 @@
+import type { DashboardStat, NotificationItem } from "@/types";
+
+export const dashboardStats: DashboardStat[] = [
+  {
+    id: "stat-total-colleges",
+    title: "Total Colleges",
+    value: 248,
+    delta: { value: 12.5, direction: "up", label: "vs last month" },
+    icon: "building",
+    tint: "primary",
+  },
+  {
+    id: "stat-active-colleges",
+    title: "Active Colleges",
+    value: 214,
+    delta: { value: 8.2, direction: "up", label: "vs last month" },
+    icon: "check-circle",
+    tint: "success",
+  },
+  {
+    id: "stat-total-events",
+    title: "Total Events",
+    value: 1842,
+    delta: { value: 23.1, direction: "up", label: "vs last month" },
+    icon: "sparkles",
+    tint: "info",
+  },
+  {
+    id: "stat-total-students",
+    title: "Total Students",
+    value: 86420,
+    delta: { value: 14.7, direction: "up", label: "vs last month" },
+    icon: "users",
+    tint: "warning",
+  },
+  {
+    id: "stat-total-registrations",
+    title: "Total Registrations",
+    value: 142310,
+    delta: { value: 18.9, direction: "up", label: "vs last month" },
+    icon: "ticket",
+    tint: "secondary",
+  },
+  {
+    id: "stat-total-revenue",
+    title: "Total Revenue",
+    value: 1280000,
+    prefix: "$",
+    decimals: 0,
+    delta: { value: 9.4, direction: "up", label: "vs last month" },
+    icon: "dollar",
+    tint: "danger",
+  },
+];
+
+export const notifications: NotificationItem[] = [
+  {
+    id: "ntf-001",
+    title: "Payment received",
+    description: "VIT Vellore paid $18,500",
+    time: "2026-07-31T08:47:00",
+    read: false,
+    kind: "payment",
+  },
+  {
+    id: "ntf-002",
+    title: "New college signed up",
+    description: "Sathyabama University joined the platform",
+    time: "2026-07-31T09:15:00",
+    read: false,
+    kind: "college",
+  },
+  {
+    id: "ntf-003",
+    title: "Event published",
+    description: "TechNova Hackathon went live",
+    time: "2026-07-31T08:12:00",
+    read: false,
+    kind: "event",
+  },
+  {
+    id: "ntf-004",
+    title: "Payment failed",
+    description: "Thapar Institute — INV-2026-0137",
+    time: "2026-07-29T16:41:00",
+    read: true,
+    kind: "alert",
+  },
+  {
+    id: "ntf-005",
+    title: "Refund processed",
+    description: "Ishita Roy — INV-2026-0119",
+    time: "2026-07-27T15:55:00",
+    read: true,
+    kind: "payment",
+  },
+];

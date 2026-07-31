@@ -1,0 +1,167 @@
+export interface CollegeDetails {
+  university: string;
+  officialEmail: string;
+  phone: string;
+  website: string;
+  address: string;
+  registrations: number;
+  volunteers: number;
+  revenue: number;
+}
+
+export const collegeDetails: Record<string, CollegeDetails> = {
+  "col-001": {
+    university: "Indian Institute of Technology Bombay",
+    officialEmail: "info@iitb.ac.in",
+    phone: "+91 22 2572 2545",
+    website: "https://www.iitb.ac.in",
+    address: "Powai, Mumbai, Maharashtra 400076",
+    registrations: 45210,
+    volunteers: 1860,
+    revenue: 1850000,
+  },
+  "col-002": {
+    university: "Vellore Institute of Technology",
+    officialEmail: "info@vit.ac.in",
+    phone: "+91 416 220 2000",
+    website: "https://www.vit.ac.in",
+    address: "Vellore, Tamil Nadu 632014",
+    registrations: 71240,
+    volunteers: 2940,
+    revenue: 3540000,
+  },
+  "col-003": {
+    university: "Delhi Technological University",
+    officialEmail: "registrar@dtu.ac.in",
+    phone: "+91 11 2729 5000",
+    website: "https://www.dtu.ac.in",
+    address: "Shahbad Daulatpur, Bawana Road, Delhi 110042",
+    registrations: 31800,
+    volunteers: 1250,
+    revenue: 1420000,
+  },
+  "col-004": {
+    university: "Christ University, Bengaluru",
+    officialEmail: "info@christuniversity.in",
+    phone: "+91 80 4012 9100",
+    website: "https://www.christuniversity.in",
+    address: "Hosur Road, Bengaluru, Karnataka 560029",
+    registrations: 28900,
+    volunteers: 1580,
+    revenue: 1680000,
+  },
+  "col-005": {
+    university: "SRM Institute of Science and Technology",
+    officialEmail: "contact@srmist.edu.in",
+    phone: "+91 44 4743 7500",
+    website: "https://www.srmist.edu.in",
+    address: "SRM Nagar, Kattankulathur, Tamil Nadu 603203",
+    registrations: 68450,
+    volunteers: 3210,
+    revenue: 2980000,
+  },
+  "col-006": {
+    university: "National Institute of Technology, Tiruchirappalli",
+    officialEmail: "office@nitt.edu",
+    phone: "+91 431 250 3000",
+    website: "https://www.nitt.edu",
+    address: "Tanjore Main Road, Tiruchirappalli, Tamil Nadu 620015",
+    registrations: 23600,
+    volunteers: 890,
+    revenue: 980000,
+  },
+  "col-007": {
+    university: "Symbiosis International University",
+    officialEmail: "info@symbiosis.ac.in",
+    phone: "+91 20 2643 3000",
+    website: "https://www.symbiosis.ac.in",
+    address: "Lavale, Mulshi, Pune, Maharashtra 412115",
+    registrations: 26750,
+    volunteers: 1430,
+    revenue: 1740000,
+  },
+  "col-008": {
+    university: "Jadavpur University",
+    officialEmail: "registrar@jadavpur.edu",
+    phone: "+91 33 2457 2222",
+    website: "https://www.jadavpur.edu",
+    address: "188 Raja S.C. Mallick Road, Kolkata, West Bengal 700032",
+    registrations: 19300,
+    volunteers: 760,
+    revenue: 720000,
+  },
+  "col-009": {
+    university: "International Institute of Information Technology, Hyderabad",
+    officialEmail: "info@iiit.ac.in",
+    phone: "+91 40 6653 1000",
+    website: "https://www.iiit.ac.in",
+    address: "Gachibowli, Hyderabad, Telangana 500032",
+    registrations: 14700,
+    volunteers: 620,
+    revenue: 850000,
+  },
+  "col-010": {
+    university: "Manipal Institute of Technology",
+    officialEmail: "info@manipal.edu",
+    phone: "+91 820 292 2400",
+    website: "https://www.manipal.edu",
+    address: "Madhav Nagar, Manipal, Karnataka 576104",
+    registrations: 31400,
+    volunteers: 1740,
+    revenue: 1560000,
+  },
+  "col-011": {
+    university: "Birla Institute of Technology and Science, Pilani",
+    officialEmail: "registrar@pilani.bits-pilani.ac.in",
+    phone: "+91 1596 245 073",
+    website: "https://www.bits-pilani.ac.in",
+    address: "Vidya Vihar, Pilani, Rajasthan 333031",
+    registrations: 28900,
+    volunteers: 1520,
+    revenue: 1420000,
+  },
+  "col-012": {
+    university: "Amity University",
+    officialEmail: "info@amity.edu",
+    phone: "+91 120 471 3600",
+    website: "https://www.amity.edu",
+    address: "Sector 125, Noida, Uttar Pradesh 201303",
+    registrations: 59400,
+    volunteers: 2760,
+    revenue: 2460000,
+  },
+  "col-013": {
+    university: "Lovely Professional University",
+    officialEmail: "info@lpu.in",
+    phone: "+91 1824 404 000",
+    website: "https://www.lpu.in",
+    address: "Jalandhar–Delhi G.T. Road, Phagwara, Punjab 144411",
+    registrations: 57600,
+    volunteers: 2490,
+    revenue: 2210000,
+  },
+  "col-014": {
+    university: "Thapar Institute of Engineering and Technology",
+    officialEmail: "info@thapar.edu",
+    phone: "+91 175 239 3021",
+    website: "https://www.thapar.edu",
+    address: "Bhadson Road, Patiala, Punjab 147004",
+    registrations: 15800,
+    volunteers: 680,
+    revenue: 690000,
+  },
+  "col-015": {
+    university: "Sathyabama Institute of Science and Technology",
+    officialEmail: "info@sathyabama.ac.in",
+    phone: "+91 44 2450 3145",
+    website: "https://www.sathyabama.ac.in",
+    address: "Rajiv Gandhi Salai, Chennai, Tamil Nadu 600119",
+    registrations: 24700,
+    volunteers: 1150,
+    revenue: 1080000,
+  },
+};
+
+export function getCollegeDetails(collegeId: string): CollegeDetails | undefined {
+  return collegeDetails[collegeId];
+}

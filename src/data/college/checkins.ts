@@ -1,0 +1,148 @@
+export type CollegeCheckInStatus = "checked-in" | "duplicate" | "rejected";
+
+export interface CollegeCheckInEntry {
+  id: string;
+  studentName: string;
+  college: string;
+  eventName: string;
+  checkInTime: string;
+  volunteer: string;
+  gate: string;
+  status: CollegeCheckInStatus;
+  avatarColor: string;
+}
+
+export const collegeCheckIns: CollegeCheckInEntry[] = [
+  {
+    id: "ci-001",
+    studentName: "Ananya Singh",
+    college: "Brainware University",
+    eventName: "Battle of Bands",
+    checkInTime: "2026-07-31T10:42:00",
+    volunteer: "Sneha Patel",
+    gate: "Main Gate",
+    status: "checked-in",
+    avatarColor: "#5B5CEB",
+  },
+  {
+    id: "ci-002",
+    studentName: "Rohan Gupta",
+    college: "Brainware University",
+    eventName: "Battle of Bands",
+    checkInTime: "2026-07-31T10:38:00",
+    volunteer: "Aisha Khan",
+    gate: "Open Air Theatre",
+    status: "checked-in",
+    avatarColor: "#14B8A6",
+  },
+  {
+    id: "ci-003",
+    studentName: "Kabir Roy",
+    college: "Brainware University",
+    eventName: "Startup Pitch Fest",
+    checkInTime: "2026-07-31T10:31:00",
+    volunteer: "Nikita Sharma",
+    gate: "Convention Centre",
+    status: "checked-in",
+    avatarColor: "#10B981",
+  },
+  {
+    id: "ci-004",
+    studentName: "Arjun Mehta",
+    college: "Brainware University",
+    eventName: "Inter-College Athletics Meet",
+    checkInTime: "2026-07-31T10:24:00",
+    volunteer: "Aditya Sen",
+    gate: "Sports Arena",
+    status: "checked-in",
+    avatarColor: "#8B5CF6",
+  },
+  {
+    id: "ci-005",
+    studentName: "Ananya Singh",
+    college: "Brainware University",
+    eventName: "Battle of Bands",
+    checkInTime: "2026-07-31T10:20:00",
+    volunteer: "Sneha Patel",
+    gate: "Main Gate",
+    status: "duplicate",
+    avatarColor: "#5B5CEB",
+  },
+  {
+    id: "ci-006",
+    studentName: "Tanya Verma",
+    college: "Brainware University",
+    eventName: "Battle of Bands",
+    checkInTime: "2026-07-31T10:12:00",
+    volunteer: "Aisha Khan",
+    gate: "Open Air Theatre",
+    status: "checked-in",
+    avatarColor: "#EC4899",
+  },
+  {
+    id: "ci-007",
+    studentName: "Ishita Bansal",
+    college: "Brainware University",
+    eventName: "Poetry Slam & Storytelling",
+    checkInTime: "2026-07-31T09:58:00",
+    volunteer: "Karan Bose",
+    gate: "Convention Centre",
+    status: "rejected",
+    avatarColor: "#EF4444",
+  },
+  {
+    id: "ci-008",
+    studentName: "Dev Malhotra",
+    college: "Brainware University",
+    eventName: "Robo Wars Championship",
+    checkInTime: "2026-07-31T09:47:00",
+    volunteer: "Pooja Iyer",
+    gate: "Innovation Hub",
+    status: "checked-in",
+    avatarColor: "#3B82F6",
+  },
+  {
+    id: "ci-009",
+    studentName: "Rohit Jain",
+    college: "Brainware University",
+    eventName: "TechNova Hackathon 2026",
+    checkInTime: "2026-07-31T09:40:00",
+    volunteer: "Rohit Jain",
+    gate: "West Gate",
+    status: "checked-in",
+    avatarColor: "#F97316",
+  },
+  {
+    id: "ci-010",
+    studentName: "Meera Pillai",
+    college: "Brainware University",
+    eventName: "Cultural Extravaganza",
+    checkInTime: "2026-07-31T09:33:00",
+    volunteer: "Divya Menon",
+    gate: "East Gate",
+    status: "checked-in",
+    avatarColor: "#22C55E",
+  },
+  {
+    id: "ci-011",
+    studentName: "Priya Das",
+    college: "Brainware University",
+    eventName: "Cultural Extravaganza",
+    checkInTime: "2026-07-31T09:26:00",
+    volunteer: "Divya Menon",
+    gate: "East Gate",
+    status: "rejected",
+    avatarColor: "#F59E0B",
+  },
+  {
+    id: "ci-012",
+    studentName: "Aarav Kapoor",
+    college: "Brainware University",
+    eventName: "TechNova Hackathon 2026",
+    checkInTime: "2026-07-31T09:18:00",
+    volunteer: "Rahul Khanna",
+    gate: "Innovation Hub",
+    status: "duplicate",
+    avatarColor: "#6366F1",
+  },
+];
