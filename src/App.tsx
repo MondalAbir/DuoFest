@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 import { CollegeLayout } from "@/layouts/CollegeLayout";
 import { VolunteerLayout } from "@/layouts/VolunteerLayout";
+import { LandingLayout } from "@/layouts/LandingLayout";
 import { PageLoader } from "@/components/common/PageLoader";
 
 const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
@@ -84,6 +85,44 @@ const VolunteerProfilePage = lazy(
   () => import("@/pages/volunteer/VolunteerProfilePage"),
 );
 
+const HomePage = lazy(() =>
+  import("@/pages/landing/HomePage").then((m) => ({ default: m.HomePage })),
+);
+const EventsLandingPage = lazy(() =>
+  import("@/pages/landing/EventsPage").then((m) => ({ default: m.EventsPage })),
+);
+const EventDetailsLandingPage = lazy(() =>
+  import("@/pages/landing/EventDetailsPage").then((m) => ({
+    default: m.EventDetailsPage,
+  })),
+);
+const RegisterPage = lazy(() =>
+  import("@/pages/landing/RegisterPage").then((m) => ({
+    default: m.RegisterPage,
+  })),
+);
+const OtpPage = lazy(() =>
+  import("@/pages/landing/OtpPage").then((m) => ({ default: m.OtpPage })),
+);
+const SuccessPage = lazy(() =>
+  import("@/pages/landing/SuccessPage").then((m) => ({
+    default: m.SuccessPage,
+  })),
+);
+const ForCollegesPage = lazy(() =>
+  import("@/pages/landing/ForCollegesPage").then((m) => ({
+    default: m.ForCollegesPage,
+  })),
+);
+const AboutPage = lazy(() =>
+  import("@/pages/landing/AboutPage").then((m) => ({ default: m.AboutPage })),
+);
+const ContactPage = lazy(() =>
+  import("@/pages/landing/ContactPage").then((m) => ({
+    default: m.ContactPage,
+  })),
+);
+
 export default function App() {
   return (
     <Suspense fallback={<PageLoader />}>
@@ -137,16 +176,18 @@ export default function App() {
             element={<Navigate to="/admin/volunteer/scan" replace />}
           />
         </Route>
-        <Route
-          path="*"
-          element={
-            <Navigate
-              to="/admin"
-              replace
-              state={{ from: "unknown" }}
-            />
-          }
-        />
+        <Route element={<LandingLayout />}>
+          <Route index element={<HomePage />} />
+          <Route path="events" element={<EventsLandingPage />} />
+          <Route path="events/:slug" element={<EventDetailsLandingPage />} />
+          <Route path="register/:slug" element={<RegisterPage />} />
+          <Route path="verify" element={<OtpPage />} />
+          <Route path="success" element={<SuccessPage />} />
+          <Route path="for-colleges" element={<ForCollegesPage />} />
+          <Route path="about" element={<AboutPage />} />
+          <Route path="contact" element={<ContactPage />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
   );
