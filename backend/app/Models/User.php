@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\HasUuid;
 use App\Contracts\Auth\FirebaseAuthUser;
 use App\Enums\UserRole;
 use App\Notifications\ResetPasswordNotification;
@@ -18,7 +19,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements FirebaseAuthUser
 {
     /** @use HasFactory<UserFactory> */
-    use CanResetPassword, HasApiTokens, HasFactory, HasRoles, Notifiable;
+    use CanResetPassword, HasApiTokens, HasFactory, HasRoles, HasUuid, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -89,11 +90,24 @@ class User extends Authenticatable implements FirebaseAuthUser
         return $this->hasMany(Event::class, 'organizer_id');
     }
 
-    public function volunteerSlots()
+    public function volunteering(): HasMany
     {
-        return $this->belongsToMany(VolunteerSlot::class, 'volunteer_slot_user')
-            ->withPivot(['status'])
-            ->withTimestamps();
+        return $this->hasMany(Volunteer::class);
+    }
+
+    public function attendance(): HasMany
+    {
+        return $this->hasMany(Attendance::class);
+    }
+
+    public function certificates(): HasMany
+    {
+        return $this->hasMany(Certificate::class);
+    }
+
+    public function announcements(): HasMany
+    {
+        return $this->hasMany(Announcement::class, 'created_by');
     }
 
     public function isSuperAdmin(): bool

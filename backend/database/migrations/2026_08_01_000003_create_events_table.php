@@ -10,8 +10,13 @@ return new class extends Migration
     {
         Schema::create('events', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uuid')->unique();
+            // Belongs to a college; deleting the college removes its events.
             $table->foreignId('college_id')->constrained()->cascadeOnDelete();
+            // Created/managed by a user; keep the event if the user is removed.
             $table->foreignId('organizer_id')->nullable()->constrained('users')->nullOnDelete();
+            // Optional classification; keep the event if the category is removed.
+            $table->foreignId('event_category_id')->nullable()->constrained('event_categories')->nullOnDelete();
             $table->string('title');
             $table->string('slug')->unique();
             $table->text('description')->nullable();
@@ -29,6 +34,7 @@ return new class extends Migration
 
             $table->index(['college_id', 'status']);
             $table->index(['starts_at', 'ends_at']);
+            $table->index('event_category_id');
         });
     }
 

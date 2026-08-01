@@ -10,12 +10,15 @@ return new class extends Migration
     {
         Schema::create('registrations', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uuid')->unique();
+            // An attendee registers for an event exactly once (unique pair).
             $table->foreignId('event_id')->constrained()->cascadeOnDelete();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('ticket_number', 32)->unique();
             $table->string('status', 20)->default('pending')->index();
             $table->json('attendee_details')->nullable();
             $table->timestamp('checked_in_at')->nullable();
+            // Staff member who scanned the ticket at the door.
             $table->foreignId('checked_in_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 

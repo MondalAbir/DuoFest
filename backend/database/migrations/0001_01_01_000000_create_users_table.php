@@ -13,12 +13,14 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uuid')->unique();
             $table->string('name');
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password')->nullable();
             $table->string('firebase_uid', 128)->nullable()->unique();
-            $table->string('phone', 32)->nullable();
+            $table->string('phone', 32)->nullable()->unique();
+            // Belongs to a college (0..1 colleges per user).
             $table->foreignId('college_id')->nullable()->constrained()->nullOnDelete();
             $table->boolean('is_active')->default(true);
             $table->timestamp('blocked_at')->nullable();

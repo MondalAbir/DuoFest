@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\HasUuid;
 use App\Enums\EventStatus;
 use App\Traits\LogsActivity;
 use Database\Factories\EventFactory;
@@ -17,6 +18,7 @@ use Illuminate\Support\Str;
 class Event extends Model
 {
     use HasFactory;
+    use HasUuid;
     use LogsActivity;
     use SoftDeletes;
 
@@ -28,6 +30,7 @@ class Event extends Model
     protected $fillable = [
         'college_id',
         'organizer_id',
+        'event_category_id',
         'title',
         'slug',
         'description',
@@ -81,14 +84,29 @@ class Event extends Model
         return $this->belongsTo(User::class, 'organizer_id');
     }
 
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(EventCategory::class, 'event_category_id');
+    }
+
     public function registrations(): HasMany
     {
         return $this->hasMany(Registration::class);
     }
 
-    public function volunteerSlots(): HasMany
+    public function volunteers(): HasMany
     {
-        return $this->hasMany(VolunteerSlot::class);
+        return $this->hasMany(Volunteer::class);
+    }
+
+    public function attendance(): HasMany
+    {
+        return $this->hasMany(Attendance::class);
+    }
+
+    public function announcements(): HasMany
+    {
+        return $this->hasMany(Announcement::class);
     }
 
     public function scopePublished(Builder $query): Builder

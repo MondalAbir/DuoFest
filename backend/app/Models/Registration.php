@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\HasUuid;
 use App\Enums\RegistrationStatus;
 use App\Traits\LogsActivity;
 use Database\Factories\RegistrationFactory;
@@ -14,6 +15,7 @@ use Illuminate\Support\Str;
 class Registration extends Model
 {
     use HasFactory;
+    use HasUuid;
     use LogsActivity;
 
     /** @use RegistrationFactory<Factory> */
