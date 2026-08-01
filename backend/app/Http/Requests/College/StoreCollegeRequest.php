@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\College;
 
+use App\Models\College;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -9,7 +10,14 @@ class StoreCollegeRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('college.create') ?? false;
+        return $this->user()->can('create', College::class);
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'code' => strtoupper((string) $this->input('code')),
+        ]);
     }
 
     /**

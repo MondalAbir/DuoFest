@@ -21,6 +21,7 @@ class CollegeResource extends JsonResource
             'country' => $this->country,
             'is_active' => $this->is_active,
             'events_count' => $this->whenCounted('events'),
+            'users_count' => $this->whenCounted('users'),
             'created_at' => $this->created_at?->toISOString(),
         ];
     }

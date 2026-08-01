@@ -18,6 +18,9 @@ class FirebaseLoginRequest extends FormRequest
     {
         return [
             'id_token' => ['required', 'string'],
+            'name' => ['nullable', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:32'],
+            'college_id' => ['nullable', 'integer', 'exists:colleges,id'],
         ];
     }
 }

@@ -21,7 +21,8 @@ return new class extends Migration
             $table->string('firebase_uid', 128)->nullable()->unique();
             $table->string('phone', 32)->nullable()->unique();
             // Belongs to a college (0..1 colleges per user).
-            $table->foreignId('college_id')->nullable()->constrained()->nullOnDelete();
+            // FK constraint added in a later migration (colleges is created after users).
+            $table->foreignId('college_id')->nullable()->index();
             $table->boolean('is_active')->default(true);
             $table->timestamp('blocked_at')->nullable();
             $table->timestamp('last_seen_at')->nullable();

@@ -9,7 +9,16 @@ class UpdateCollegeRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('college.update') ?? false;
+        return $this->user()->can('update', $this->route('college'));
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->filled('code')) {
+            $this->merge([
+                'code' => strtoupper((string) $this->input('code')),
+            ]);
+        }
     }
 
     /**
@@ -17,7 +26,7 @@ class UpdateCollegeRequest extends FormRequest
      */
     public function rules(): array
     {
-        $collegeId = $this->route('college');
+        $collegeId = $this->route('college')?->getKey();
 
         return [
             'name' => ['sometimes', 'string', 'max:255'],

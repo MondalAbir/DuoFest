@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -62,5 +63,17 @@ class Certificate extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function event(): HasOneThrough
+    {
+        return $this->hasOneThrough(
+            Event::class,
+            Registration::class,
+            'id',       // Foreign key on registrations
+            'id',       // Foreign key on events
+            'registration_id',
+            'event_id',
+        );
     }
 }

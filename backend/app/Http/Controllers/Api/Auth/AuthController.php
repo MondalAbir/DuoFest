@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Api\Auth;
 
 use App\Contracts\Services\AuthServiceInterface;
 use App\Http\Controllers\Api\ApiController;
+use App\Http\Requests\Auth\ChangePasswordRequest;
 use App\Http\Requests\Auth\FirebaseLoginRequest;
 use App\Http\Requests\Auth\ForgotPasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
-use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Http\Requests\Auth\VerifyEmailRequest;
 use App\Http\Resources\AuthUserResource;
@@ -21,16 +21,6 @@ class AuthController extends ApiController
         private readonly AuthServiceInterface $authService,
     ) {}
 
-    public function register(RegisterRequest $request): JsonResponse
-    {
-        $result = $this->authService->register($request->validated());
-
-        return $this->created(
-            new AuthUserResource($result['user'], $result['token'], $result['expires_at'] ?? null),
-            'Account created successfully.',
-        );
-    }
-
     public function login(LoginRequest $request): JsonResponse
     {
         $result = $this->authService->login($request->validated());
@@ -43,7 +33,7 @@ class AuthController extends ApiController
 
     public function loginWithFirebase(FirebaseLoginRequest $request): JsonResponse
     {
-        $result = $this->authService->loginWithFirebase($request->validated('id_token'));
+        $result = $this->authService->loginWithFirebase($request->validated());
 
         return $this->success(
             new AuthUserResource($result['user'], $result['token'], $result['expires_at'] ?? null),
@@ -106,5 +96,23 @@ class AuthController extends ApiController
         $this->authService->resetPassword($request->validated());
 
         return $this->success(null, 'Your password has been reset.');
+    }
+
+    /**
+     * Accept a college admin invitation by setting an initial password.
+     * Reuses the password broker token issued in the invitation email.
+     */
+    public function acceptInvitation(ResetPasswordRequest $request): JsonResponse
+    {
+        $this->authService->resetPassword($request->validated());
+
+        return $this->success(null, 'Invitation accepted. You can now sign in.');
+    }
+
+    public function changePassword(ChangePasswordRequest $request): JsonResponse
+    {
+        $this->authService->changePassword($request->user(), $request->validated());
+
+        return $this->success(null, 'Password changed successfully.');
     }
 }

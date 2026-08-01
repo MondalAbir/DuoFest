@@ -4,13 +4,23 @@ namespace App\Services\Volunteer;
 
 use App\Contracts\Services\VolunteerServiceInterface;
 use App\Exceptions\ApiException;
+use App\Models\Event;
 use App\Models\User;
-use App\Models\VolunteerSlot;
-use Illuminate\Support\Collection;
+use App\Models\Volunteer;
+use Illuminate\Database\Eloquent\Collection;
 
 class VolunteerService implements VolunteerServiceInterface
 {
-    public function assign(VolunteerSlot $slot, array $userIds): array
+    public function createForEvent(Event $event, array $data): Volunteer
+    {
+        if ($event->volunteers()->where('user_id', $data['user_id'])->exists()) {
+            throw new ApiException('This user is already assigned as a volunteer.', 422, errorCode: 'already_assigned');
+        }
+
+        return $event->volunteers()->create($data);
+    }
+
+    public function assign(Event $event, array $userIds, array $data = []): array
     {
         $userIds = array_values(array_unique(array_map('intval', $userIds)));
 
@@ -18,42 +28,32 @@ class VolunteerService implements VolunteerServiceInterface
         $skipped = [];
 
         foreach ($userIds as $userId) {
-            $user = User::query()->find($userId);
-
-            if (! $user) {
+            if (! User::query()->whereKey($userId)->exists()) {
                 $skipped[] = $userId;
 
                 continue;
             }
 
-            if ($slot->volunteers()->where('users.id', $userId)->exists()) {
+            if ($event->volunteers()->where('user_id', $userId)->exists()) {
                 $skipped[] = $userId;
 
                 continue;
             }
 
-            if ($slot->volunteers()->count() >= $slot->capacity) {
-                throw new ApiException('This volunteer slot is full.', 422, errorCode: 'slot_full');
-            }
-
-            $slot->volunteers()->attach($user->getKey(), ['status' => 'assigned']);
+            $event->volunteers()->create(array_merge($data, ['user_id' => $userId]));
             $assigned[] = $userId;
         }
 
         return compact('assigned', 'skipped');
     }
 
-    public function remove(VolunteerSlot $slot, User $user): void
+    public function remove(Volunteer $volunteer): void
     {
-        $detached = $slot->volunteers()->detach($user->getKey());
-
-        if ($detached === 0) {
-            throw new ApiException('This user is not assigned to the slot.', 404, errorCode: 'not_assigned');
-        }
+        $volunteer->delete();
     }
 
-    public function slotsForUser(User $user): Collection
+    public function assignmentsForUser(User $user): Collection
     {
-        return $user->volunteerSlots()->with('event')->get();
+        return $user->volunteering()->with('event')->get();
     }
 }

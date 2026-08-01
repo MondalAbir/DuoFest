@@ -21,6 +21,7 @@ class UserResource extends JsonResource
             'college' => new CollegeResource($this->whenLoaded('college')),
             'roles' => $this->whenLoaded('roles', fn () => $this->getRoleNames()),
             'is_active' => $this->is_active,
+            'blocked_at' => $this->blocked_at?->toISOString(),
             'last_seen_at' => $this->last_seen_at?->toISOString(),
             'created_at' => $this->created_at?->toISOString(),
         ];

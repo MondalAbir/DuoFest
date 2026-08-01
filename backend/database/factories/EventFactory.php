@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Enums\EventStatus;
 use App\Models\College;
 use App\Models\Event;
+use App\Models\EventCategory;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -23,6 +24,7 @@ class EventFactory extends Factory
         return [
             'college_id' => College::factory(),
             'organizer_id' => User::factory(),
+            'event_category_id' => EventCategory::factory(),
             'title' => fake()->unique()->catchPhrase(),
             'description' => fake()->paragraph(),
             'venue' => fake()->streetAddress(),

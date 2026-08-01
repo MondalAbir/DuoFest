@@ -6,7 +6,6 @@ use App\Contracts\Services\AuthServiceInterface;
 use App\Contracts\Services\FirebaseAuthServiceInterface;
 use App\Contracts\Services\TokenServiceInterface;
 use App\Enums\ActivityType;
-use App\Enums\UserRole;
 use App\Exceptions\ApiException;
 use App\Models\User;
 use App\Notifications\EmailVerificationNotification;
@@ -26,7 +25,7 @@ class AuthService implements AuthServiceInterface
         private readonly ActivityLogService $activityLog,
     ) {}
 
-    public function register(array $data): array
+    public function createUser(array $data): User
     {
         $user = new User([
             'name' => $data['name'],
@@ -34,25 +33,21 @@ class AuthService implements AuthServiceInterface
             'password' => Hash::make($data['password']),
             'phone' => $data['phone'] ?? null,
             'college_id' => $data['college_id'] ?? null,
-            'is_active' => true,
+            'is_active' => $data['is_active'] ?? true,
         ]);
-
-        if (! empty($data['email_verified_at'])) {
-            $user->email_verified_at = $data['email_verified_at'];
-        }
 
         $user->save();
 
-        $user->assignRole(config('api.defaults.user_role', UserRole::STUDENT->value));
+        $user->assignRole($data['role']);
 
         $this->activityLog->record(
             subject: $user,
-            type: ActivityType::REGISTERED,
-            causer: $user,
-            description: "Registered account for {$user->email}",
+            type: ActivityType::CREATED,
+            causer: request()->user(),
+            description: "Created {$data['role']} account for {$user->email}",
         );
 
-        return $this->tokenPair($user, $data['device_name'] ?? 'unknown');
+        return $user;
     }
 
     public function login(array $credentials): array
@@ -61,7 +56,19 @@ class AuthService implements AuthServiceInterface
             ->where('email', $credentials['email'])
             ->first();
 
-        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
+        if (! $user) {
+            throw new ApiException('Invalid credentials.', 401, errorCode: 'invalid_credentials');
+        }
+
+        if ($user->password === null) {
+            throw new ApiException(
+                'This account uses email OTP. Please sign in with the verification code.',
+                422,
+                errorCode: 'otp_only_account',
+            );
+        }
+
+        if (! Hash::check($credentials['password'], $user->password)) {
             throw new ApiException('Invalid credentials.', 401, errorCode: 'invalid_credentials');
         }
 
@@ -79,11 +86,14 @@ class AuthService implements AuthServiceInterface
         return $this->tokenPair($user, $credentials['device_name'] ?? 'unknown');
     }
 
-    public function loginWithFirebase(string $idToken): array
+    public function loginWithFirebase(array $data): array
     {
-        $firebaseUser = $this->firebase->verifyIdToken($idToken);
+        $firebaseUser = $this->firebase->verifyIdToken($data['id_token']);
 
-        $user = $this->firebase->findOrCreateUser($firebaseUser);
+        $user = $this->firebase->findOrCreateUser(
+            $firebaseUser,
+            array_intersect_key($data, array_flip(['name', 'phone', 'college_id'])),
+        );
 
         if ($user->isBlocked()) {
             throw new ApiException('Your account has been blocked.', 403, errorCode: 'account_blocked');
@@ -210,6 +220,39 @@ class AuthService implements AuthServiceInterface
         if ($status !== Password::PASSWORD_RESET) {
             throw new ApiException('This password reset token is invalid or has expired.', 422, errorCode: 'invalid_reset_token');
         }
+    }
+
+    public function changePassword(User $user, array $data): void
+    {
+        if ($user->password === null) {
+            throw new ApiException(
+                'This account uses email OTP and has no local password.',
+                422,
+                errorCode: 'otp_only_account',
+            );
+        }
+
+        if (! Hash::check($data['current_password'], $user->password)) {
+            throw new ApiException('Your current password is incorrect.', 422, errorCode: 'invalid_current_password');
+        }
+
+        $user->password = Hash::make($data['password']);
+        $user->save();
+
+        // Revoke every other session so the new password takes effect everywhere.
+        $user->tokens()
+            ->when(
+                $currentTokenId = $user->currentAccessToken()?->getKey(),
+                fn ($query) => $query->whereKeyNot($currentTokenId),
+            )
+            ->delete();
+
+        $this->activityLog->record(
+            subject: $user,
+            type: ActivityType::PASSWORD_CHANGED,
+            causer: $user,
+            description: "Password changed for {$user->email}",
+        );
     }
 
     /**

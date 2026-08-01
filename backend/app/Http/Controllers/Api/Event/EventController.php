@@ -8,6 +8,7 @@ use App\Http\Requests\Event\StoreEventRequest;
 use App\Http\Requests\Event\UpdateEventRequest;
 use App\Http\Resources\EventResource;
 use App\Models\Event;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -19,9 +20,44 @@ class EventController extends ApiController
 
     public function index(Request $request): JsonResponse
     {
-        $filters = $request->only(['search', 'college_id', 'status', 'is_featured', 'upcoming', 'per_page']);
+        $filters = $request->only([
+            'search', 'college_id', 'category_id', 'status', 'is_featured',
+            'upcoming', 'ongoing', 'completed', 'phase', 'per_page',
+        ]);
 
-        $events = $this->eventService->paginate($filters);
+        $isAdmin = $request->user()?->can('event.view_any') ?? false;
+
+        $events = $this->eventService->paginate($filters, $isAdmin);
+
+        return $this->paginated(EventResource::collection($events));
+    }
+
+    /**
+     * Public feed of featured events.
+     */
+    public function featured(Request $request): JsonResponse
+    {
+        $events = $this->eventService->featured($this->publicFilters($request));
+
+        return $this->paginated(EventResource::collection($events));
+    }
+
+    /**
+     * Public feed of upcoming events.
+     */
+    public function upcoming(Request $request): JsonResponse
+    {
+        $events = $this->eventService->upcoming($this->publicFilters($request));
+
+        return $this->paginated(EventResource::collection($events));
+    }
+
+    /**
+     * Public full-text search.
+     */
+    public function search(Request $request): JsonResponse
+    {
+        $events = $this->eventService->search((string) $request->query('q', ''), $this->publicFilters($request));
 
         return $this->paginated(EventResource::collection($events));
     }
@@ -38,12 +74,20 @@ class EventController extends ApiController
 
     public function show(Request $request, Event $event): JsonResponse
     {
-        return $this->success(new EventResource($event->load(['college', 'organizer'])));
+        $this->guardVisible($request, $event);
+
+        return $this->success(new EventResource(
+            $event->load(['college', 'organizer', 'category', 'banner', 'gallery', 'sponsors']),
+        ));
     }
 
     public function showBySlug(Request $request, string $slug): JsonResponse
     {
-        return $this->success(new EventResource($this->eventService->findBySlug($slug)));
+        $event = $this->eventService->findBySlug($slug);
+
+        $this->guardVisible($request, $event);
+
+        return $this->success(new EventResource($event));
     }
 
     public function update(UpdateEventRequest $request, Event $event): JsonResponse
@@ -68,5 +112,32 @@ class EventController extends ApiController
     public function unpublish(Event $event): JsonResponse
     {
         return $this->success(new EventResource($this->eventService->unpublish($event)), 'Event unpublished successfully.');
+    }
+
+    public function archive(Event $event): JsonResponse
+    {
+        return $this->success(new EventResource($this->eventService->archive($event)), 'Event archived successfully.');
+    }
+
+    public function unarchive(Event $event): JsonResponse
+    {
+        return $this->success(new EventResource($this->eventService->unarchive($event)), 'Event unarchived successfully.');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function publicFilters(Request $request): array
+    {
+        return $request->only(['college_id', 'category_id', 'per_page']);
+    }
+
+    private function guardVisible(Request $request, Event $event): void
+    {
+        $isAdmin = $request->user()?->can('event.view_any') ?? false;
+
+        if (! $event->isVisible() && ! $isAdmin) {
+            throw new ModelNotFoundException;
+        }
     }
 }

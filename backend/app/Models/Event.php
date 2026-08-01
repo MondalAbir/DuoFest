@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -38,9 +39,13 @@ class Event extends Model
         'starts_at',
         'ends_at',
         'status',
+        'archived_from',
         'capacity',
         'registration_count',
         'requires_approval',
+        'registration_enabled',
+        'registration_open_at',
+        'registration_closes_at',
         'is_featured',
         'cover_image_url',
     ];
@@ -53,6 +58,9 @@ class Event extends Model
             'capacity' => 'integer',
             'registration_count' => 'integer',
             'requires_approval' => 'boolean',
+            'registration_enabled' => 'boolean',
+            'registration_open_at' => 'datetime',
+            'registration_closes_at' => 'datetime',
             'is_featured' => 'boolean',
             'status' => EventStatus::class,
         ];
@@ -109,9 +117,46 @@ class Event extends Model
         return $this->hasMany(Announcement::class);
     }
 
+    public function media(): HasMany
+    {
+        return $this->hasMany(EventMedia::class);
+    }
+
+    public function gallery(): HasMany
+    {
+        return $this->media()->where('type', 'gallery');
+    }
+
+    public function banner(): HasMany
+    {
+        return $this->media()->where('type', 'banner');
+    }
+
+    public function sponsors(): HasMany
+    {
+        return $this->hasMany(EventSponsor::class);
+    }
+
+    public function certificates(): HasManyThrough
+    {
+        return $this->hasManyThrough(Certificate::class, Registration::class);
+    }
+
     public function scopePublished(Builder $query): Builder
     {
         return $query->where('status', EventStatus::PUBLISHED->value);
+    }
+
+    /**
+     * Events currently visible to the public (all non-workflow statuses).
+     */
+    public function scopeVisible(Builder $query): Builder
+    {
+        return $query->whereIn('status', [
+            EventStatus::PUBLISHED->value,
+            EventStatus::UPCOMING->value,
+            EventStatus::LIVE->value,
+        ]);
     }
 
     public function scopeUpcoming(Builder $query): Builder
@@ -119,8 +164,39 @@ class Event extends Model
         return $query->where('starts_at', '>', now());
     }
 
+    public function scopeOngoing(Builder $query): Builder
+    {
+        return $query->where('starts_at', '<=', now())
+            ->where(function (Builder $query) {
+                $query->whereNull('ends_at')
+                    ->orWhere('ends_at', '>=', now());
+            });
+    }
+
+    public function scopeCompleted(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query) {
+            $query->where('status', EventStatus::COMPLETED->value)
+                ->orWhere('ends_at', '<', now());
+        });
+    }
+
+    public function scopeArchived(Builder $query): Builder
+    {
+        return $query->where('status', EventStatus::ARCHIVED->value);
+    }
+
     public function scopeForCollege(Builder $query, int $collegeId): Builder
     {
         return $query->where('college_id', $collegeId);
+    }
+
+    public function isVisible(): bool
+    {
+        return in_array($this->status?->value, [
+            EventStatus::PUBLISHED->value,
+            EventStatus::UPCOMING->value,
+            EventStatus::LIVE->value,
+        ], true);
     }
 }

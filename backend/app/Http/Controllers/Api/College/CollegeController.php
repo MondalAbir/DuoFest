@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api\College;
 
 use App\Contracts\Services\CollegeServiceInterface;
 use App\Http\Controllers\Api\ApiController;
+use App\Http\Requests\College\InviteCollegeAdminRequest;
 use App\Http\Requests\College\StoreCollegeRequest;
 use App\Http\Requests\College\UpdateCollegeRequest;
 use App\Http\Resources\CollegeResource;
+use App\Http\Resources\UserResource;
 use App\Models\College;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -31,9 +33,11 @@ class CollegeController extends ApiController
         return $this->created(new CollegeResource($college), 'College created successfully.');
     }
 
-    public function show(int $id): JsonResponse
+    public function show(College $college): JsonResponse
     {
-        return $this->success(new CollegeResource($this->collegeService->find($id)));
+        $college->loadCount(['events', 'users']);
+
+        return $this->success(new CollegeResource($college), 'College retrieved.');
     }
 
     public function update(UpdateCollegeRequest $request, College $college): JsonResponse
@@ -48,5 +52,15 @@ class CollegeController extends ApiController
         $this->collegeService->delete($college);
 
         return $this->success(null, 'College deleted successfully.');
+    }
+
+    public function inviteAdmin(InviteCollegeAdminRequest $request, College $college): JsonResponse
+    {
+        $user = $this->collegeService->inviteAdmin($college, $request->validated());
+
+        return $this->success(
+            new UserResource($user->load(['college', 'roles'])),
+            "Invitation sent to {$user->email}.",
+        );
     }
 }

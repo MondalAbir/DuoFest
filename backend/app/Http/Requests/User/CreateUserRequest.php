@@ -1,11 +1,12 @@
 <?php
 
-namespace App\Http\Requests\Auth;
+namespace App\Http\Requests\User;
 
+use App\Enums\UserRole;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class RegisterRequest extends FormRequest
+class CreateUserRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -23,7 +24,7 @@ class RegisterRequest extends FormRequest
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'phone' => ['nullable', 'string', 'max:32'],
             'college_id' => ['nullable', 'integer', 'exists:colleges,id'],
-            'device_name' => ['nullable', 'string', 'max:255'],
+            'role' => ['required', Rule::enum(UserRole::class)],
         ];
     }
 }

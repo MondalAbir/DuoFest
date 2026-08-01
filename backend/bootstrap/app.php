@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AddSecurityHeaders;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\ForceJsonOnApi;
 use App\Http\Middleware\RequestLogger;
@@ -22,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(ForceJsonOnApi::class);
+        $middleware->append(AddSecurityHeaders::class);
 
         $middleware->alias([
             'active' => EnsureUserIsActive::class,

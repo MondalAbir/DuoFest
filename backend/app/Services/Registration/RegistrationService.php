@@ -20,6 +20,18 @@ class RegistrationService implements RegistrationServiceInterface
             throw new ApiException('This event is not open for registration.', 422, errorCode: 'event_not_open');
         }
 
+        if (! $event->registration_enabled) {
+            throw new ApiException('Registrations are closed for this event.', 422, errorCode: 'registrations_closed');
+        }
+
+        if ($event->registration_open_at && $event->registration_open_at->isFuture()) {
+            throw new ApiException('Registrations have not opened yet.', 422, errorCode: 'registrations_not_open');
+        }
+
+        if ($event->registration_closes_at && $event->registration_closes_at->isPast()) {
+            throw new ApiException('Registrations have closed for this event.', 422, errorCode: 'registrations_closed');
+        }
+
         if ($event->capacity && $event->registrations()->whereNot('status', RegistrationStatus::CANCELLED->value)->count() >= $event->capacity) {
             throw new ApiException('This event is at full capacity.', 422, errorCode: 'event_full');
         }

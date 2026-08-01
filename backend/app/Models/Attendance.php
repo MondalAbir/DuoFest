@@ -15,6 +15,8 @@ class Attendance extends Model
     use HasFactory;
     use HasUuid;
 
+    protected $table = 'attendance';
+
     /** @use AttendanceFactory<Factory> */
     protected $fillable = [
         'event_id',

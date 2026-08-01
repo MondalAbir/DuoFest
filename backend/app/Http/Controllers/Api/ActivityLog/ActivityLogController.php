@@ -20,6 +20,7 @@ class ActivityLogController extends ApiController
             ->when($request->filled('type'), fn ($query) => $query->where('type', $request->query('type')))
             ->when($request->filled('user_id'), fn ($query) => $query->where('causer_id', $request->query('user_id')))
             ->when($request->filled('subject_type'), fn ($query) => $query->where('subject_type', $request->query('subject_type')))
+            ->when($request->filled('subject_id'), fn ($query) => $query->where('subject_id', $request->query('subject_id')))
             ->orderByDesc('created_at')
             ->paginate((int) ($request->query('per_page', config('api.per_page'))));
 

@@ -22,6 +22,10 @@ enum Permission: string
     case EVENT_UPDATE = 'event.update';
     case EVENT_DELETE = 'event.delete';
     case EVENT_PUBLISH = 'event.publish';
+    case EVENT_ARCHIVE = 'event.archive';
+    case EVENT_MEDIA = 'event.media';
+    case EVENT_SPONSOR = 'event.sponsor';
+    case EVENT_CERTIFICATE = 'event.certificate';
 
     // Registrations
     case REGISTRATION_VIEW_ANY = 'registration.view_any';
@@ -40,6 +44,7 @@ enum Permission: string
 
     // Users
     case USER_VIEW_ANY = 'user.view_any';
+    case USER_CREATE = 'user.create';
     case USER_UPDATE = 'user.update';
     case USER_ASSIGN_ROLE = 'user.assign_role';
     case USER_BLOCK = 'user.block';

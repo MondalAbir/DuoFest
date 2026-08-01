@@ -6,11 +6,10 @@ use App\Contracts\Services\VolunteerServiceInterface;
 use App\Enums\Permission;
 use App\Http\Controllers\Api\ApiController;
 use App\Http\Requests\Volunteer\AssignVolunteersRequest;
-use App\Http\Requests\Volunteer\StoreVolunteerSlotRequest;
-use App\Http\Resources\VolunteerSlotResource;
+use App\Http\Requests\Volunteer\StoreVolunteerRequest;
+use App\Http\Resources\VolunteerResource;
 use App\Models\Event;
-use App\Models\User;
-use App\Models\VolunteerSlot;
+use App\Models\Volunteer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -20,33 +19,46 @@ class VolunteerController extends ApiController
         private readonly VolunteerServiceInterface $volunteerService,
     ) {}
 
-    public function store(StoreVolunteerSlotRequest $request, Event $event): JsonResponse
+    public function index(Request $request, Event $event): JsonResponse
     {
-        $slot = $event->volunteerSlots()->create($request->validated());
+        $this->authorize(Permission::VOLUNTEER_VIEW_ANY->value);
 
-        return $this->created(new VolunteerSlotResource($slot), 'Volunteer slot created.');
+        $volunteers = $event->volunteers()->with('user')->get();
+
+        return $this->success(VolunteerResource::collection($volunteers), 'Event volunteers.');
     }
 
-    public function mySlots(Request $request): JsonResponse
+    public function store(StoreVolunteerRequest $request, Event $event): JsonResponse
     {
-        $slots = $this->volunteerService->slotsForUser($request->user());
+        $volunteer = $this->volunteerService->createForEvent($event, $request->validated());
 
-        return $this->success(VolunteerSlotResource::collection($slots), 'Your volunteer slots.');
+        return $this->created(new VolunteerResource($volunteer->load('user')), 'Volunteer added.');
     }
 
-    public function assign(AssignVolunteersRequest $request, Event $event, VolunteerSlot $slot): JsonResponse
+    public function assign(AssignVolunteersRequest $request, Event $event): JsonResponse
     {
-        $result = $this->volunteerService->assign($slot, $request->validated('user_ids'));
+        $result = $this->volunteerService->assign(
+            $event,
+            $request->validated('user_ids'),
+            $request->safe()->except('user_ids'),
+        );
 
         return $this->success($result, 'Volunteers assigned successfully.');
     }
 
-    public function remove(Request $request, Event $event, VolunteerSlot $slot, User $user): JsonResponse
+    public function destroy(Request $request, Volunteer $volunteer): JsonResponse
     {
         $this->authorize(Permission::VOLUNTEER_UPDATE->value);
 
-        $this->volunteerService->remove($slot, $user);
+        $this->volunteerService->remove($volunteer);
 
-        return $this->success(null, 'Volunteer removed from slot.');
+        return $this->success(null, 'Volunteer removed.');
+    }
+
+    public function myVolunteering(Request $request): JsonResponse
+    {
+        $volunteers = $this->volunteerService->assignmentsForUser($request->user());
+
+        return $this->success(VolunteerResource::collection($volunteers), 'Your volunteer assignments.');
     }
 }

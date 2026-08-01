@@ -8,12 +8,15 @@ use Illuminate\Http\Request;
 interface AuthServiceInterface
 {
     /**
-     * Register a new user with email/password and return an API token pair.
+     * Provision a new account for staff/volunteers (admin only).
+     *
+     * Public student sign-up is intentionally removed; students are
+     * auto-registered with the "student" role on their first Firebase
+     * email OTP sign-in instead.
      *
      * @param  array<string, mixed>  $data
-     * @return array{user: User, token: string, token_type: string}
      */
-    public function register(array $data): array;
+    public function createUser(array $data): User;
 
     /**
      * Authenticate an existing user with email/password.
@@ -24,11 +27,14 @@ interface AuthServiceInterface
     public function login(array $credentials): array;
 
     /**
-     * Authenticate a user using a Firebase ID token.
+     * Authenticate a user using a Firebase ID token. Optional profile
+     * fields (name, phone, college_id) are applied when the account is
+     * auto-created on first sign-in.
      *
+     * @param  array<string, mixed>  $data
      * @return array{user: User, token: string, token_type: string}
      */
-    public function loginWithFirebase(string $idToken): array;
+    public function loginWithFirebase(array $data): array;
 
     /**
      * Issue a new personal access token for the given user.
@@ -68,4 +74,12 @@ interface AuthServiceInterface
      * @param  array<string, mixed>  $data
      */
     public function resetPassword(array $data): void;
+
+    /**
+     * Change the authenticated user's password after verifying their
+     * current one. Other sessions are revoked.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function changePassword(User $user, array $data): void;
 }

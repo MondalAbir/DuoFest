@@ -9,6 +9,7 @@ enum EventStatus: string
     case UPCOMING = 'upcoming';
     case LIVE = 'live';
     case COMPLETED = 'completed';
+    case ARCHIVED = 'archived';
     case CANCELLED = 'cancelled';
 
     public static function values(): array

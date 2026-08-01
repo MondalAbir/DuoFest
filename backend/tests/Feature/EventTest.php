@@ -19,8 +19,28 @@ class EventTest extends TestCase
 
         $this->getJson('/api/v1/events')
             ->assertOk()
-            ->assertJsonCount(3, 'data')
-            ->assertJsonStructure(['data' => [['id', 'title', 'slug', 'status']]]);
+            ->assertJsonCount(2, 'data')
+            ->assertJsonStructure(['data' => [['id', 'title', 'slug', 'status', 'phase']]]);
+    }
+
+    public function test_drafts_are_hidden_from_public_list_but_visible_to_managers(): void
+    {
+        $college = College::factory()->create();
+
+        Event::factory()->create(['college_id' => $college->id, 'status' => EventStatus::DRAFT->value]);
+        Event::factory()->create(['college_id' => $college->id, 'status' => EventStatus::ARCHIVED->value]);
+        Event::factory()->published()->create(['college_id' => $college->id]);
+
+        $this->getJson('/api/v1/events')
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+
+        $manager = $this->createUser([], UserRole::EVENT_MANAGER->value);
+
+        $this->actingAsApi($manager)
+            ->getJson('/api/v1/events')
+            ->assertOk()
+            ->assertJsonCount(3, 'data');
     }
 
     public function test_events_can_be_filtered_by_college(): void
@@ -28,8 +48,8 @@ class EventTest extends TestCase
         $collegeA = College::factory()->create();
         $collegeB = College::factory()->create();
 
-        Event::factory()->create(['college_id' => $collegeA->id]);
-        Event::factory()->create(['college_id' => $collegeB->id]);
+        Event::factory()->published()->create(['college_id' => $collegeA->id]);
+        Event::factory()->published()->create(['college_id' => $collegeB->id]);
 
         $this->getJson("/api/v1/events?college_id={$collegeA->id}")
             ->assertOk()
@@ -85,7 +105,7 @@ class EventTest extends TestCase
 
     public function test_event_can_be_found_by_slug(): void
     {
-        $event = Event::factory()->create(['title' => 'Special Slug Event']);
+        $event = Event::factory()->published()->create(['title' => 'Special Slug Event']);
 
         $this->getJson("/api/v1/events/slug/{$event->slug}")
             ->assertOk()

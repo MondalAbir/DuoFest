@@ -2,7 +2,9 @@
 
 namespace App\Traits;
 
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 /**
  * Consistent JSON response envelope for the REST API:
@@ -57,10 +59,30 @@ trait ApiResponse
     }
 
     /**
-     * Paginated resource wrapper with meta information.
+     * Paginated resource wrapper. The items are returned under `data` and
+     * pagination metadata (total, per page, pages) under `meta`.
      */
     protected function paginated(mixed $resource, string $message = 'OK'): JsonResponse
     {
-        return $this->success($resource, $message, 200);
+        $payload = [
+            'success' => true,
+            'message' => $message,
+            'data' => $resource,
+        ];
+
+        if ($resource instanceof AnonymousResourceCollection && $resource->resource instanceof LengthAwarePaginator) {
+            $paginator = $resource->resource;
+
+            $payload['meta'] = [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
+            ];
+        }
+
+        return response()->json($payload, 200);
     }
 }
