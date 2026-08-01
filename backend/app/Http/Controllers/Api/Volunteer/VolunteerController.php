@@ -34,14 +34,14 @@ class VolunteerController extends ApiController
         return $this->success(VolunteerSlotResource::collection($slots), 'Your volunteer slots.');
     }
 
-    public function assign(AssignVolunteersRequest $request, VolunteerSlot $slot): JsonResponse
+    public function assign(AssignVolunteersRequest $request, Event $event, VolunteerSlot $slot): JsonResponse
     {
         $result = $this->volunteerService->assign($slot, $request->validated('user_ids'));
 
         return $this->success($result, 'Volunteers assigned successfully.');
     }
 
-    public function remove(Request $request, VolunteerSlot $slot, User $user): JsonResponse
+    public function remove(Request $request, Event $event, VolunteerSlot $slot, User $user): JsonResponse
     {
         $this->authorize(Permission::VOLUNTEER_UPDATE->value);
 
