@@ -107,4 +107,3 @@ Route::middleware(['auth:api', 'active'])
     ->get('activity-logs', [ActivityLogController::class, 'index'])
     ->middleware('permission:activity_log.view_any')
     ->name('activity-logs.index');
-

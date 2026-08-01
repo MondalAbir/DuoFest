@@ -22,11 +22,13 @@ class VolunteerService implements VolunteerServiceInterface
 
             if (! $user) {
                 $skipped[] = $userId;
+
                 continue;
             }
 
             if ($slot->volunteers()->where('users.id', $userId)->exists()) {
                 $skipped[] = $userId;
+
                 continue;
             }
 

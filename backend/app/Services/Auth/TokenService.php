@@ -5,7 +5,6 @@ namespace App\Services\Auth;
 use App\Contracts\Services\TokenServiceInterface;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Request;
 
 class TokenService implements TokenServiceInterface
 {

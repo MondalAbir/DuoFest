@@ -4,7 +4,6 @@ namespace App\Services\Event;
 
 use App\Contracts\Services\EventServiceInterface;
 use App\Enums\EventStatus;
-use App\Exceptions\ApiException;
 use App\Models\Event;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 

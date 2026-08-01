@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Database\Factories\VolunteerSlotFactory;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,7 +15,7 @@ class VolunteerSlot extends Model
     use HasFactory;
     use SoftDeletes;
 
-    /** @use \Database\Factories\VolunteerSlotFactory<\Illuminate\Database\Eloquent\Factories\Factory> */
+    /** @use VolunteerSlotFactory<Factory> */
     protected $fillable = [
         'event_id',
         'name',

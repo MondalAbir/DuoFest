@@ -2,8 +2,8 @@
 
 namespace App\Contracts\Services;
 
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use App\Models\College;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface CollegeServiceInterface
 {

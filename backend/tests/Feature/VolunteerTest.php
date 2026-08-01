@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Enums\UserRole;
 use App\Models\Event;
-use App\Models\User;
 use App\Models\VolunteerSlot;
 use Tests\TestCase;
 

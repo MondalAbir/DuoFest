@@ -7,7 +7,6 @@ use App\Enums\RegistrationStatus;
 use App\Enums\UserRole;
 use App\Models\Event;
 use App\Models\Registration;
-use App\Models\User;
 use Tests\TestCase;
 
 class RegistrationTest extends TestCase

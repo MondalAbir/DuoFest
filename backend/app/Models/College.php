@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
+use Database\Factories\CollegeFactory;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,9 +13,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class College extends Model
 {
     use HasFactory;
+    use LogsActivity;
     use SoftDeletes;
 
-    /** @use \Database\Factories\CollegeFactory<\Illuminate\Database\Eloquent\Factories\Factory> */
+    /** @use CollegeFactory<Factory> */
     protected $fillable = [
         'name',
         'code',

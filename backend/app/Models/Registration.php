@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Enums\RegistrationStatus;
 use App\Traits\LogsActivity;
+use Database\Factories\RegistrationFactory;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,7 +16,7 @@ class Registration extends Model
     use HasFactory;
     use LogsActivity;
 
-    /** @use \Database\Factories\RegistrationFactory<\Illuminate\Database\Eloquent\Factories\Factory> */
+    /** @use RegistrationFactory<Factory> */
     protected $fillable = [
         'event_id',
         'user_id',

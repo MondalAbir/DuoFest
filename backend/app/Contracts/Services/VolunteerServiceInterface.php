@@ -4,6 +4,7 @@ namespace App\Contracts\Services;
 
 use App\Models\User;
 use App\Models\VolunteerSlot;
+use Illuminate\Database\Eloquent\Collection;
 
 interface VolunteerServiceInterface
 {
@@ -16,7 +17,7 @@ interface VolunteerServiceInterface
     public function remove(VolunteerSlot $slot, User $user): void;
 
     /**
-     * @return \Illuminate\Database\Eloquent\Collection<int, VolunteerSlot>
+     * @return Collection<int, VolunteerSlot>
      */
     public function slotsForUser(User $user);
 }

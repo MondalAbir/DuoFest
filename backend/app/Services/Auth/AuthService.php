@@ -9,8 +9,8 @@ use App\Enums\ActivityType;
 use App\Enums\UserRole;
 use App\Exceptions\ApiException;
 use App\Models\User;
-use App\Services\ActivityLog\ActivityLogService;
 use App\Notifications\EmailVerificationNotification;
+use App\Services\ActivityLog\ActivityLogService;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -148,14 +148,14 @@ class AuthService implements AuthServiceInterface
             return;
         }
 
-        $user->notify(new EmailVerificationNotification());
+        $user->notify(new EmailVerificationNotification);
     }
 
     public function verifyEmail(User $user, string $expires, string $signature): void
     {
         $hash = sha1($user->getEmailForVerification());
 
-        $signedRequest = \Illuminate\Http\Request::create(
+        $signedRequest = Request::create(
             route('verification.verify', ['id' => $user->getKey(), 'hash' => $hash]),
             'GET',
             ['expires' => $expires, 'signature' => $signature],

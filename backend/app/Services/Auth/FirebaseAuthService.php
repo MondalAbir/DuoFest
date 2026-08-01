@@ -73,7 +73,7 @@ class FirebaseAuthService implements FirebaseAuthServiceInterface
         $wasExisting = $user !== null;
 
         if (! $user) {
-            $user = new User();
+            $user = new User;
             $user->email = $email;
         }
 

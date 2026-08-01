@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\ThrottleRequestsException;
@@ -38,6 +39,7 @@ class JsonApiExceptionRenderer
             $e instanceof NotFoundHttpException => static::message('Route not found.', 404),
             $e instanceof MethodNotAllowedHttpException => static::message('Method not allowed.', 405),
             $e instanceof ThrottleRequestsException => static::message('Too many requests.', 429),
+            $e instanceof HttpException => static::message($e->getMessage(), $e->getStatusCode()),
             default => static::fallback($e),
         };
     }

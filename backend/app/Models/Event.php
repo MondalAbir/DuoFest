@@ -4,7 +4,9 @@ namespace App\Models;
 
 use App\Enums\EventStatus;
 use App\Traits\LogsActivity;
+use Database\Factories\EventFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,7 +20,7 @@ class Event extends Model
     use LogsActivity;
     use SoftDeletes;
 
-    /** @use \Database\Factories\EventFactory<\Illuminate\Database\Eloquent\Factories\Factory> */
+    /** @use EventFactory<Factory> */
     protected $attributes = [
         'status' => EventStatus::DRAFT->value,
     ];

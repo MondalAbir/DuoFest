@@ -4,8 +4,10 @@ namespace App\Providers;
 
 use App\Auth\Guards\FirebaseGuard;
 use App\Contracts\Services\FirebaseAuthServiceInterface;
+use App\Services\Auth\FirebaseAuthService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\ServiceProvider;
+use Kreait\Firebase\Factory;
 
 class FirebaseServiceProvider extends ServiceProvider
 {
@@ -28,7 +30,7 @@ class FirebaseServiceProvider extends ServiceProvider
 
     protected function registerFirebaseBindings(): void
     {
-        $this->app->bind(FirebaseAuthServiceInterface::class, \App\Services\Auth\FirebaseAuthService::class);
+        $this->app->bind(FirebaseAuthServiceInterface::class, FirebaseAuthService::class);
 
         $this->app->singleton(\Kreait\Firebase\Contract\Auth::class, function ($app) {
             $projectId = config('firebase.project_id');
@@ -44,7 +46,7 @@ class FirebaseServiceProvider extends ServiceProvider
                 );
             }
 
-            $factory = new \Kreait\Firebase\Factory();
+            $factory = new Factory;
 
             if ($projectId) {
                 $factory = $factory->withProjectId($projectId);

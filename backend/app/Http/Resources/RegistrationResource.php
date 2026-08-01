@@ -2,10 +2,11 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Registration;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin \App\Models\Registration */
+/** @mixin Registration */
 class RegistrationResource extends JsonResource
 {
     public function toArray(Request $request): array
