@@ -19,6 +19,10 @@ class Event extends Model
     use SoftDeletes;
 
     /** @use \Database\Factories\EventFactory<\Illuminate\Database\Eloquent\Factories\Factory> */
+    protected $attributes = [
+        'status' => EventStatus::DRAFT->value,
+    ];
+
     protected $fillable = [
         'college_id',
         'organizer_id',
