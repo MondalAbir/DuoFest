@@ -16,12 +16,18 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { collegeEvents, collegeEventDetails } from "@/data/college/events";
-import { recentRegistrations } from "@/data/college/registrations";
-import { collegeVolunteers } from "@/data/college/volunteers";
-import { collegeCertificates } from "@/data/college/certificates";
+import type { CollegeEventDetails } from "@/data/college/events";
+import { useEvent, useEventVolunteers, useRegistrations } from "@/lib/hooks";
+import {
+  adaptCollegeEvent,
+  adaptRegistration,
+  adaptVolunteer,
+} from "@/lib/adapters";
+import type { Registration, Volunteer } from "@/types";
 import { formatCompact, formatCurrency, formatDate } from "@/utils/format";
+import { CATEGORY_GRADIENTS, getAvatarColor } from "@/utils/constants";
 import { PageHeader } from "@/components/common/PageHeader";
+import { PageLoader } from "@/components/common/PageLoader";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { RegistrationOverviewChart } from "@/components/college/RegistrationOverviewChart";
@@ -47,6 +53,27 @@ const EVENT_TABS = [
   { value: "analytics", label: "Analytics", icon: QrCode },
 ];
 
+const AVATAR_COLORS = [
+  "#6366F1",
+  "#14B8A6",
+  "#F59E0B",
+  "#0EA5E9",
+  "#10B981",
+  "#EC4899",
+  "#8B5CF6",
+  "#EF4444",
+];
+
+const GALLERY_GRADIENTS = Object.values(CATEGORY_GRADIENTS);
+
+function colorFor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash * 31 + name.charCodeAt(i)) | 0;
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
 function FactTile({
   icon: Icon,
   label,
@@ -71,30 +98,32 @@ function FactTile({
   );
 }
 
-const registrationColumns: DataTableColumn<(typeof recentRegistrations)[number]>[] = [
+const registrationColumns: DataTableColumn<Registration>[] = [
   {
     key: "student",
     header: "Student",
     cell: (reg) => (
       <div className="flex items-center gap-3">
-        <UserAvatar name={reg.studentName} color={reg.avatarColor} size="sm" />
+        <UserAvatar name={reg.studentName} color={colorFor(reg.studentName)} size="sm" />
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-foreground">
             {reg.studentName}
           </p>
           <p className="hidden truncate text-xs text-muted-foreground sm:block">
-            {reg.course} · {reg.semester}
+            {reg.email}
           </p>
         </div>
       </div>
     ),
   },
   {
-    key: "time",
+    key: "date",
     header: "Registered",
     hideBelow: "sm",
     cell: (reg) => (
-      <span className="text-sm text-muted-foreground">{reg.time}</span>
+      <span className="text-sm text-muted-foreground">
+        {formatDate(reg.date)}
+      </span>
     ),
   },
   {
@@ -116,7 +145,7 @@ const registrationColumns: DataTableColumn<(typeof recentRegistrations)[number]>
   },
 ];
 
-const volunteerColumns: DataTableColumn<(typeof collegeVolunteers)[number]>[] = [
+const volunteerColumns: DataTableColumn<Volunteer>[] = [
   {
     key: "volunteer",
     header: "Volunteer",
@@ -135,18 +164,25 @@ const volunteerColumns: DataTableColumn<(typeof collegeVolunteers)[number]>[] = 
     ),
   },
   {
-    key: "gate",
-    header: "Gate",
+    key: "college",
+    header: "College",
+    hideBelow: "md",
     cell: (volunteer) => (
-      <span className="text-sm text-muted-foreground">{volunteer.gate}</span>
+      <span className="text-sm text-muted-foreground">
+        {volunteer.collegeName}
+      </span>
     ),
   },
   {
-    key: "shift",
-    header: "Shift",
-    hideBelow: "sm",
+    key: "hours",
+    header: "Hours",
+    align: "right",
+    sortable: true,
+    sortValue: (volunteer) => volunteer.hours,
     cell: (volunteer) => (
-      <span className="text-sm text-muted-foreground">{volunteer.shift}</span>
+      <span className="text-sm font-medium text-foreground">
+        {volunteer.hours}h
+      </span>
     ),
   },
   {
@@ -156,34 +192,72 @@ const volunteerColumns: DataTableColumn<(typeof collegeVolunteers)[number]>[] = 
   },
 ];
 
+interface EventCertificateRow {
+  id: string;
+  studentName: string;
+  attendance: number;
+  certificateStatus: "eligible" | "generated" | "sent" | "downloaded";
+  emailStatus: "sent" | "failed" | "pending";
+  avatarColor: string;
+}
+
 export default function CollegeEventDetailsPage() {
   const navigate = useNavigate();
   const { eventId } = useParams();
 
-  const event = collegeEvents.find((item) => item.id === eventId);
-  const details = event ? collegeEventDetails[event.id] : undefined;
+  const numericId = Number(eventId);
+
+  const { data: apiEvent, isLoading } = useEvent(numericId);
+  const { data: registrationsData } = useRegistrations({
+    event_id: numericId,
+    perPage: 100,
+  });
+  const { data: volunteersData } = useEventVolunteers(numericId);
+
+  const event = useMemo(
+    () => (apiEvent ? adaptCollegeEvent(apiEvent) : null),
+    [apiEvent],
+  );
+
+  const details = useMemo<CollegeEventDetails | null>(() => {
+    if (!apiEvent) return null;
+    return {
+      description: apiEvent.description ?? "",
+      rules: [],
+      eligibility: "Open to all students.",
+      registrationStart: apiEvent.registration_open_at ?? "",
+      registrationEnd: apiEvent.registration_closes_at ?? "",
+      fee: 0,
+      qrEntry: false,
+      certificateEnabled: false,
+      schedule: [],
+      sponsors: (apiEvent.sponsors ?? []).map((sponsor) => ({
+        name: sponsor.name,
+        tier: sponsor.tier ?? "Silver",
+        color: getAvatarColor(sponsor.id),
+      })),
+      gallery: (apiEvent.gallery ?? []).map((media) => ({
+        label: media.alt_text ?? "Gallery photo",
+        gradient: GALLERY_GRADIENTS[Math.abs(media.id) % GALLERY_GRADIENTS.length],
+      })),
+    };
+  }, [apiEvent]);
 
   const eventRegistrations = useMemo(
-    () =>
-      event ? recentRegistrations.filter((reg) => reg.eventName === event.name) : [],
-    [event],
+    () => (registrationsData?.items ?? []).map(adaptRegistration),
+    [registrationsData],
   );
   const eventVolunteers = useMemo(
-    () =>
-      event
-        ? collegeVolunteers.filter((volunteer) => volunteer.eventName === event.name)
-        : [],
-    [event],
+    () => (volunteersData ?? []).map(adaptVolunteer),
+    [volunteersData],
   );
-  const eventCertificates = useMemo(
-    () =>
-      event
-        ? collegeCertificates.filter((cert) => cert.eventName === event.name)
-        : [],
-    [event],
-  );
+  const eventCertificates: EventCertificateRow[] = [];
 
-  if (!event) {
+  if (isLoading) {
+    return <PageLoader />;
+  }
+
+  if (!event || !details) {
     return (
       <div className="space-y-6">
         <PageHeader
@@ -307,7 +381,7 @@ export default function CollegeEventDetailsPage() {
                   About this event
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  {details?.description ?? "No description provided."}
+                  {details.description ?? "No description provided."}
                 </p>
               </div>
               <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
@@ -316,7 +390,7 @@ export default function CollegeEventDetailsPage() {
                   Rules
                 </h3>
                 <ul className="mt-3 space-y-2">
-                  {(details?.rules ?? []).map((rule, index) => (
+                  {details.rules.map((rule, index) => (
                     <li
                       key={index}
                       className="flex items-start gap-2 text-sm text-muted-foreground"
@@ -325,7 +399,7 @@ export default function CollegeEventDetailsPage() {
                       {rule}
                     </li>
                   ))}
-                  {(details?.rules ?? []).length === 0 && (
+                  {details.rules.length === 0 && (
                     <li className="text-sm text-muted-foreground">
                       No rules listed.
                     </li>
@@ -342,7 +416,7 @@ export default function CollegeEventDetailsPage() {
                   <FactTile
                     icon={Ticket}
                     label="Fee"
-                    value={details?.fee ? formatCurrency(details.fee) : "Free"}
+                    value={details.fee ? formatCurrency(details.fee) : "Free"}
                     tint="text-primary"
                   />
                   <FactTile
@@ -355,7 +429,7 @@ export default function CollegeEventDetailsPage() {
                     icon={CalendarDays}
                     label="Opens"
                     value={
-                      details?.registrationStart
+                      details.registrationStart
                         ? formatDate(details.registrationStart)
                         : "—"
                     }
@@ -365,7 +439,7 @@ export default function CollegeEventDetailsPage() {
                     icon={CalendarClock}
                     label="Closes"
                     value={
-                      details?.registrationEnd
+                      details.registrationEnd
                         ? formatDate(details.registrationEnd)
                         : "—"
                     }
@@ -376,25 +450,25 @@ export default function CollegeEventDetailsPage() {
                   <span
                     className={cn(
                       "inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium",
-                      details?.qrEntry
+                      details.qrEntry
                         ? "text-success"
                         : "text-muted-foreground",
                     )}
                   >
                     <QrCode className="h-3.5 w-3.5" />
-                    QR entry {details?.qrEntry ? "enabled" : "disabled"}
+                    QR entry {details.qrEntry ? "enabled" : "disabled"}
                   </span>
                   <span
                     className={cn(
                       "inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium",
-                      details?.certificateEnabled
+                      details.certificateEnabled
                         ? "text-success"
                         : "text-muted-foreground",
                     )}
                   >
                     <Award className="h-3.5 w-3.5" />
                     Certificates{" "}
-                    {details?.certificateEnabled ? "enabled" : "disabled"}
+                    {details.certificateEnabled ? "enabled" : "disabled"}
                   </span>
                 </div>
               </div>
@@ -403,7 +477,7 @@ export default function CollegeEventDetailsPage() {
                   Eligibility
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  {details?.eligibility ?? "Open to all students."}
+                  {details.eligibility}
                 </p>
               </div>
             </div>
@@ -431,7 +505,7 @@ export default function CollegeEventDetailsPage() {
         </TabsContent>
 
         <TabsContent value="schedule" className="mt-6">
-          {(details?.schedule ?? []).length === 0 ? (
+          {details.schedule.length === 0 ? (
             <EmptyState
               icon={CalendarClock}
               title="No schedule yet"
@@ -439,7 +513,7 @@ export default function CollegeEventDetailsPage() {
             />
           ) : (
             <ol className="space-y-4">
-              {details?.schedule.map((item, index) => (
+              {details.schedule.map((item, index) => (
                 <li
                   key={index}
                   className="relative flex items-start gap-4 rounded-2xl border border-border bg-card p-4 shadow-card"
@@ -476,7 +550,7 @@ export default function CollegeEventDetailsPage() {
         </TabsContent>
 
         <TabsContent value="gallery" className="mt-6">
-          {(details?.gallery ?? []).length === 0 ? (
+          {details.gallery.length === 0 ? (
             <EmptyState
               icon={ImageIcon}
               title="No photos yet"
@@ -484,7 +558,7 @@ export default function CollegeEventDetailsPage() {
             />
           ) : (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-              {details?.gallery.map((item, index) => (
+              {details.gallery.map((item, index) => (
                 <div
                   key={index}
                   className={cn(
@@ -502,7 +576,7 @@ export default function CollegeEventDetailsPage() {
         </TabsContent>
 
         <TabsContent value="sponsors" className="mt-6">
-          {(details?.sponsors ?? []).length === 0 ? (
+          {details.sponsors.length === 0 ? (
             <EmptyState
               icon={HandCoins}
               title="No sponsors yet"
@@ -510,7 +584,7 @@ export default function CollegeEventDetailsPage() {
             />
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {details?.sponsors.map((sponsor) => (
+              {details.sponsors.map((sponsor) => (
                 <div
                   key={sponsor.name}
                   className="flex items-center gap-4 rounded-2xl border border-border bg-card p-5 shadow-card"
@@ -593,7 +667,10 @@ export default function CollegeEventDetailsPage() {
                 Conversion rate
               </p>
               <p className="mt-2 text-2xl font-bold tracking-tight text-foreground">
-                {Math.round((event.registrations / event.capacity) * 100)}%
+                {event.capacity
+                  ? Math.round((event.registrations / event.capacity) * 100)
+                  : 0}
+                %
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 of capacity filled
@@ -604,7 +681,7 @@ export default function CollegeEventDetailsPage() {
                 Avg. registration fee
               </p>
               <p className="mt-2 text-2xl font-bold tracking-tight text-foreground">
-                {details?.fee ? formatCurrency(details.fee) : "—"}
+                {details.fee ? formatCurrency(details.fee) : "—"}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 per participant
@@ -615,7 +692,7 @@ export default function CollegeEventDetailsPage() {
                 Volunteers per 100
               </p>
               <p className="mt-2 text-2xl font-bold tracking-tight text-foreground">
-                {event.volunteers}
+                {eventVolunteers.length}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 assigned to this event

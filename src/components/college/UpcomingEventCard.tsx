@@ -1,7 +1,9 @@
 import { Link } from "react-router";
 import { ArrowUpRight, CalendarDays } from "lucide-react";
 import type { CollegeEvent } from "@/data/college/events";
-import { collegeEvents } from "@/data/college/events";
+import { useEvents } from "@/lib/hooks";
+import { adaptCollegeEvent } from "@/lib/adapters";
+import { useAuth } from "@/context/AuthContext";
 import { formatDateShort } from "@/utils/format";
 import { cn } from "@/utils/cn";
 import { DashboardChart } from "./DashboardChart";
@@ -37,7 +39,14 @@ export function UpcomingEventCard({ event, index = 0 }: UpcomingEventCardProps) 
 }
 
 export function UpcomingEventsWidget() {
-  const upcoming = collegeEvents
+  const { user } = useAuth();
+  const { data } = useEvents({
+    college_id: user?.college_id ?? undefined,
+    perPage: 100,
+  });
+
+  const upcoming = (data?.items ?? [])
+    .map(adaptCollegeEvent)
     .filter((event) => event.status === "upcoming")
     .slice(0, 4);
 

@@ -3,6 +3,7 @@ import {
   Bell,
   CreditCard,
   Lock,
+  Loader2,
   Monitor,
   Save,
   UserRound,
@@ -22,28 +23,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "@/context/AuthContext";
+import { useChangePassword } from "@/lib/hooks";
+import { toastApiError, toastError, toastSuccess } from "@/lib/toast";
+import { getAvatarColor } from "@/utils/constants";
+import type { UserRole } from "@/lib/api/types";
 
-const PROFILE = {
-  name: "Adrian Cole",
-  email: "adrian.duofest@admin.io",
-  color: "#5B5CEB",
+const ROLE_LABELS: Record<UserRole, string> = {
+  super_admin: "Super Administrator",
+  college_admin: "College Administrator",
+  event_manager: "Event Manager",
+  volunteer: "Volunteer",
+  student: "Student",
 };
 
 function ProfileTab() {
+  const { user, roles } = useAuth();
+  const name = user?.name ?? "Guest";
+  const email = user?.email ?? "";
+  const role = (roles[0] as UserRole | undefined) ?? "student";
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <UserAvatar name={PROFILE.name} color={PROFILE.color} size="lg" />
+        <UserAvatar name={name} color={getAvatarColor(user?.id ?? 0)} size="lg" />
         <div className="space-y-1">
           <h3 className="text-sm font-semibold text-foreground">Profile photo</h3>
           <p className="text-xs text-muted-foreground">
             JPG, PNG or SVG. Max 2MB.
           </p>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" disabled>
               Upload
             </Button>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" disabled>
               Remove
             </Button>
           </div>
@@ -53,15 +66,15 @@ function ProfileTab() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="settings-name">Full name</Label>
-          <Input id="settings-name" defaultValue={PROFILE.name} />
+          <Input id="settings-name" defaultValue={name} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="settings-role">Role</Label>
-          <Input id="settings-role" value="Super Administrator" disabled />
+          <Input id="settings-role" value={ROLE_LABELS[role] ?? role} disabled />
         </div>
         <div className="space-y-2">
           <Label htmlFor="settings-email">Email address</Label>
-          <Input id="settings-email" type="email" defaultValue={PROFILE.email} />
+          <Input id="settings-email" type="email" defaultValue={email} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="settings-timezone">Timezone</Label>
@@ -78,10 +91,15 @@ function ProfileTab() {
           </Select>
         </div>
       </div>
-      <Button className="gap-2">
-        <Save className="h-4 w-4" />
-        Save changes
-      </Button>
+      <div className="flex items-center gap-3">
+        <Button className="gap-2">
+          <Save className="h-4 w-4" />
+          Save changes
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          Profile details are managed by your administrator.
+        </p>
+      </div>
     </div>
   );
 }
@@ -221,6 +239,39 @@ function AppearanceTab() {
 }
 
 function SecurityTab() {
+  const changePassword = useChangePassword();
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+
+  const handleChangePassword = async () => {
+    if (!current || !next) {
+      toastError("Enter your current and new password.");
+      return;
+    }
+    if (next.length < 8) {
+      toastError("New password must be at least 8 characters.");
+      return;
+    }
+    if (next !== confirm) {
+      toastError("New password and confirmation do not match.");
+      return;
+    }
+    try {
+      await changePassword.mutateAsync({
+        current_password: current,
+        password: next,
+        password_confirmation: confirm,
+      });
+      toastSuccess("Password changed successfully.");
+      setCurrent("");
+      setNext("");
+      setConfirm("");
+    } catch (error) {
+      toastApiError(error, "Unable to change password.");
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="space-y-4">
@@ -228,21 +279,47 @@ function SecurityTab() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="password-current">Current password</Label>
-            <Input id="password-current" type="password" placeholder="••••••••" />
+            <Input
+              id="password-current"
+              type="password"
+              placeholder="••••••••"
+              value={current}
+              onChange={(event) => setCurrent(event.target.value)}
+            />
           </div>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="password-new">New password</Label>
-            <Input id="password-new" type="password" placeholder="••••••••" />
+            <Input
+              id="password-new"
+              type="password"
+              placeholder="••••••••"
+              value={next}
+              onChange={(event) => setNext(event.target.value)}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="password-confirm">Confirm new password</Label>
-            <Input id="password-confirm" type="password" placeholder="••••••••" />
+            <Input
+              id="password-confirm"
+              type="password"
+              placeholder="••••••••"
+              value={confirm}
+              onChange={(event) => setConfirm(event.target.value)}
+            />
           </div>
         </div>
-        <Button className="gap-2">
-          <Lock className="h-4 w-4" />
+        <Button
+          className="gap-2"
+          onClick={handleChangePassword}
+          disabled={changePassword.isPending}
+        >
+          {changePassword.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Lock className="h-4 w-4" />
+          )}
           Update password
         </Button>
       </div>

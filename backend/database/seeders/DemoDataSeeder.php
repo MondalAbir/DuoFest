@@ -31,8 +31,9 @@ class DemoDataSeeder extends Seeder
             ],
         );
 
-        $admin = $this->demoUser('admin@duofest.test', 'DuoFest Admin', $college, UserRole::SUPER_ADMIN->value);
+        $admin = $this->demoUser('superadmin@duofest.test', 'DuoFest Admin', $college, UserRole::SUPER_ADMIN->value);
         $organizer = $this->demoUser('organizer@duofest.test', 'Event Organizer', $college, UserRole::EVENT_MANAGER->value);
+        $volunteer = $this->demoUser('volunteer@duofest.test', 'Event Volunteer', $college, UserRole::VOLUNTEER->value);
         $student = $this->demoUser('student@duofest.test', 'Student Attendee', $college, UserRole::STUDENT->value);
 
         $cultural = EventCategory::query()->where('slug', 'cultural')->first();
@@ -93,6 +94,17 @@ class DemoDataSeeder extends Seeder
                 'shift_start_at' => $culturalNight->starts_at,
                 'shift_end_at' => $culturalNight->ends_at,
                 'status' => VolunteerStatus::ASSIGNED->value,
+            ],
+        );
+
+        Volunteer::query()->firstOrCreate(
+            ['event_id' => $culturalNight->id, 'user_id' => $volunteer->id],
+            [
+                'assigned_by' => $organizer->id,
+                'role' => 'Ticket Scanner',
+                'shift_start_at' => $culturalNight->starts_at,
+                'shift_end_at' => $culturalNight->ends_at,
+                'status' => VolunteerStatus::ACCEPTED->value,
             ],
         );
 

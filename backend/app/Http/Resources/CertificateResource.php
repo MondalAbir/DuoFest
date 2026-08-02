@@ -16,12 +16,17 @@ class CertificateResource extends JsonResource
             'registration_id' => $this->registration_id,
             'user_id' => $this->user_id,
             'user' => new UserResource($this->whenLoaded('user')),
+            'attendee' => [
+                'name' => $this->registration?->name ?? $this->user?->name,
+                'email' => $this->contactEmail(),
+            ],
             'certificate_number' => $this->certificate_number,
             'template' => $this->template,
             'status' => $this->status?->value ?? $this->status,
-            'file_path' => $this->file_path,
+            'file_url' => $this->file_url,
             'issued_at' => $this->issued_at?->toISOString(),
             'expires_at' => $this->expires_at?->toISOString(),
+            'emailed_at' => $this->emailed_at?->toISOString(),
             'created_at' => $this->created_at?->toISOString(),
         ];
     }

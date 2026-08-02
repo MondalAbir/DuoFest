@@ -3,9 +3,8 @@ import { useNavigate } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import { CornerDownLeft, Search, SearchX } from "lucide-react";
 import { allNavItems } from "@/config/navigation";
-import { colleges } from "@/data/colleges";
-import { events } from "@/data/events";
-import { admins } from "@/data/admins";
+import { useColleges, useEvents, useCollegeAdmins } from "@/lib/hooks";
+import { adaptCollege, adaptEvent, adaptAdminUser } from "@/lib/adapters";
 import { formatDateShort } from "@/utils/format";
 import { cn } from "@/utils/cn";
 
@@ -28,6 +27,14 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const { data: collegesData } = useColleges({ perPage: 100 });
+  const { data: eventsData } = useEvents({ perPage: 100 });
+  const { data: adminsData } = useCollegeAdmins({ perPage: 100 });
+
+  const colleges = (collegesData?.items ?? []).map(adaptCollege);
+  const events = (eventsData?.items ?? []).map(adaptEvent);
+  const admins = (adminsData?.items ?? []).map(adaptAdminUser);
 
   useEffect(() => {
     if (open) {
@@ -60,7 +67,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
         id: `college-${c.id}`,
         group: "Colleges",
         title: c.name,
-        subtitle: `${c.city}, ${c.state}`,
+        subtitle: c.city !== "—" ? c.city : undefined,
         action: go("/admin/colleges"),
         hint: "College",
       }));
@@ -84,7 +91,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
         id: `admin-${a.id}`,
         group: "College Admins",
         title: a.name,
-        subtitle: a.collegeName,
+        subtitle: a.collegeName !== "—" ? a.collegeName : undefined,
         action: go("/admin/admins"),
         hint: "Admin",
       }));
@@ -92,7 +99,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
     if (!q) return [...pageResults];
 
     return [...pageResults, ...collegeResults, ...eventResults, ...adminResults];
-  }, [query, navigate, onOpenChange]);
+  }, [query, navigate, onOpenChange, colleges, events, admins]);
 
   useEffect(() => {
     setSelectedIndex(0);

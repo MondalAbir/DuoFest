@@ -142,6 +142,11 @@ class Event extends Model
         return $this->hasManyThrough(Certificate::class, Registration::class);
     }
 
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class);
+    }
+
     public function scopePublished(Builder $query): Builder
     {
         return $query->where('status', EventStatus::PUBLISHED->value);

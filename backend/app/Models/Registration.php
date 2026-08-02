@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class Registration extends Model
@@ -26,6 +27,13 @@ class Registration extends Model
         'ticket_number',
         'status',
         'attendee_details',
+        'name',
+        'email',
+        'phone',
+        'ticket_payload',
+        'ticket_qr_path',
+        'ticket_pdf_path',
+        'ticket_issued_at',
         'checked_in_at',
         'checked_in_by',
     ];
@@ -34,6 +42,7 @@ class Registration extends Model
     {
         return [
             'attendee_details' => 'array',
+            'ticket_issued_at' => 'datetime',
             'checked_in_at' => 'datetime',
             'status' => RegistrationStatus::class,
         ];
@@ -74,5 +83,38 @@ class Registration extends Model
     public function attendance(): HasMany
     {
         return $this->hasMany(Attendance::class);
+    }
+
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class);
+    }
+
+    public function isGuest(): bool
+    {
+        return $this->user_id === null;
+    }
+
+    public function hasIssuedTicket(): bool
+    {
+        return $this->ticket_issued_at !== null && $this->ticket_qr_path !== null;
+    }
+
+    public function getTicketQrUrlAttribute(): ?string
+    {
+        return $this->ticket_qr_path ? Storage::disk('public')->url($this->ticket_qr_path) : null;
+    }
+
+    public function getTicketPdfUrlAttribute(): ?string
+    {
+        return $this->ticket_pdf_path ? Storage::disk('public')->url($this->ticket_pdf_path) : null;
+    }
+
+    /**
+     * Public identity used for lookups: guest email or the linked account email.
+     */
+    public function contactEmail(): ?string
+    {
+        return $this->email ?? $this->user?->email;
     }
 }

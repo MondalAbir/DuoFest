@@ -61,7 +61,10 @@ export function LandingNavbar() {
 
         <div className="hidden items-center gap-2 lg:flex">
           <Button variant="outline" size="sm" asChild>
-            <Link to="/admin/college">College login</Link>
+            <Link to="/login/college">College login</Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/login/volunteer">Volunteer login</Link>
           </Button>
           <Button size="sm" asChild>
             <Link to="/events">Register for a fest</Link>
@@ -105,9 +108,12 @@ export function LandingNavbar() {
               ))}
               <div className="grid grid-cols-2 gap-2 pt-3">
                 <Button variant="outline" size="sm" asChild>
-                  <Link to="/admin/college">College login</Link>
+                  <Link to="/login/college">College login</Link>
                 </Button>
-                <Button size="sm" asChild>
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/login/volunteer">Volunteer login</Link>
+                </Button>
+                <Button size="sm" className="col-span-2" asChild>
                   <Link to="/events">Register</Link>
                 </Button>
               </div>

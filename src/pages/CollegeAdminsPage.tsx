@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Download, MoreHorizontal, Plus, ShieldCheck } from "lucide-react";
-import { admins } from "@/data/admins";
+import { useCollegeAdmins } from "@/lib/hooks";
+import { adaptAdminUser } from "@/lib/adapters";
 import type { AdminUser, DashboardStat } from "@/types";
 import { searchInArray, filterByStatus } from "@/utils/filter";
 import { formatDate, timeAgo } from "@/utils/format";
@@ -119,6 +120,9 @@ export default function CollegeAdminsPage() {
 
   const columns = useMemo(() => buildColumns(setSelectedAdmin), []);
 
+  const { data, isLoading } = useCollegeAdmins({ perPage: 100 });
+  const admins = (data?.items ?? []).map(adaptAdminUser);
+
   const stats = useMemo<DashboardStat[]>(() => [
     {
       id: "admins-total",
@@ -152,7 +156,7 @@ export default function CollegeAdminsPage() {
       icon: "ticket",
       tint: "danger",
     },
-  ], []);
+  ], [admins]);
 
   const filtered = useMemo(() => {
     const searched = searchInArray(admins, query, [
@@ -161,7 +165,7 @@ export default function CollegeAdminsPage() {
       "collegeName",
     ]);
     return filterByStatus(searched, "status", status);
-  }, [query, status]);
+  }, [query, status, admins]);
 
   return (
     <div className="space-y-6">
@@ -231,6 +235,7 @@ export default function CollegeAdminsPage() {
         rowKey={(admin) => admin.id}
         pageSize={8}
         emptyMessage="No admins found"
+        loading={isLoading}
       />
     </div>
   );

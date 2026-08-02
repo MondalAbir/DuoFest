@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Contracts\Repositories\CollegeRepositoryInterface;
+use App\Contracts\Services\AnalyticsServiceInterface;
 use App\Contracts\Services\AuthServiceInterface;
 use App\Contracts\Services\CollegeAdminServiceInterface;
 use App\Contracts\Services\CollegeServiceInterface;
@@ -12,7 +13,10 @@ use App\Contracts\Services\EventServiceInterface;
 use App\Contracts\Services\EventSponsorServiceInterface;
 use App\Contracts\Services\FirebaseAuthServiceInterface;
 use App\Contracts\Services\RegistrationServiceInterface;
+use App\Contracts\Services\ReportServiceInterface;
+use App\Contracts\Services\TicketServiceInterface;
 use App\Contracts\Services\TokenServiceInterface;
+use App\Contracts\Services\TransactionServiceInterface;
 use App\Contracts\Services\VolunteerServiceInterface;
 use App\Models\College;
 use App\Models\Event;
@@ -21,6 +25,7 @@ use App\Policies\CollegeAdminPolicy;
 use App\Policies\CollegePolicy;
 use App\Policies\EventPolicy;
 use App\Repositories\Eloquent\CollegeRepository;
+use App\Services\Analytics\AnalyticsService;
 use App\Services\Auth\AuthService;
 use App\Services\Auth\FirebaseAuthService;
 use App\Services\Auth\TokenService;
@@ -31,6 +36,9 @@ use App\Services\Event\EventMediaService;
 use App\Services\Event\EventService;
 use App\Services\Event\EventSponsorService;
 use App\Services\Registration\RegistrationService;
+use App\Services\Registration\TicketService;
+use App\Services\Report\ReportService;
+use App\Services\Transaction\TransactionService;
 use App\Services\Volunteer\VolunteerService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -46,6 +54,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(AuthServiceInterface::class, AuthService::class);
+        $this->app->bind(AnalyticsServiceInterface::class, AnalyticsService::class);
         $this->app->bind(TokenServiceInterface::class, TokenService::class);
         $this->app->bind(FirebaseAuthServiceInterface::class, FirebaseAuthService::class);
         $this->app->bind(CollegeServiceInterface::class, CollegeService::class);
@@ -56,7 +65,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(EventSponsorServiceInterface::class, EventSponsorService::class);
         $this->app->bind(EventCertificateServiceInterface::class, EventCertificateService::class);
         $this->app->bind(RegistrationServiceInterface::class, RegistrationService::class);
+        $this->app->bind(TicketServiceInterface::class, TicketService::class);
         $this->app->bind(VolunteerServiceInterface::class, VolunteerService::class);
+        $this->app->bind(TransactionServiceInterface::class, TransactionService::class);
+        $this->app->bind(ReportServiceInterface::class, ReportService::class);
     }
 
     /**
@@ -102,6 +114,16 @@ class AppServiceProvider extends ServiceProvider
                     'success' => false,
                     'code' => 'too_many_requests',
                     'message' => 'Too many password reset requests.',
+                ], 429));
+        });
+
+        RateLimiter::for('otp', function (Request $request) use ($limits) {
+            return Limit::perMinutes($limits['otp_decay'], $limits['otp'])
+                ->by(strtolower((string) $request->input('email', $request->ip())))
+                ->response(fn () => response()->json([
+                    'success' => false,
+                    'code' => 'too_many_requests',
+                    'message' => 'Too many verification requests. Please try again later.',
                 ], 429));
         });
     }

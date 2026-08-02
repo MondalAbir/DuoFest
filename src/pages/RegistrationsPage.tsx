@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Download, Ticket } from "lucide-react";
-import { registrations } from "@/data/registrations";
+import { useRegistrations } from "@/lib/hooks";
+import { adaptRegistration } from "@/lib/adapters";
 import type { DashboardStat, Registration } from "@/types";
 import { searchInArray, filterByStatus } from "@/utils/filter";
 import { formatCurrency, formatDate } from "@/utils/format";
@@ -86,6 +87,9 @@ export default function RegistrationsPage() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
 
+  const { data, isLoading } = useRegistrations({ perPage: 100 });
+  const registrations = (data?.items ?? []).map(adaptRegistration);
+
   const stats = useMemo<DashboardStat[]>(() => {
     const confirmed = registrations.filter(
       (r) => r.status === "confirmed",
@@ -131,7 +135,7 @@ export default function RegistrationsPage() {
         tint: "danger",
       },
     ];
-  }, []);
+  }, [registrations]);
 
   const filtered = useMemo(() => {
     const searched = searchInArray(registrations, query, [
@@ -141,7 +145,7 @@ export default function RegistrationsPage() {
       "collegeName",
     ]);
     return filterByStatus(searched, "status", status);
-  }, [query, status]);
+  }, [query, status, registrations]);
 
   return (
     <div className="space-y-6">
@@ -197,6 +201,7 @@ export default function RegistrationsPage() {
         rowKey={(registration) => registration.id}
         pageSize={8}
         emptyMessage="No registrations found"
+        loading={isLoading}
       />
     </div>
   );

@@ -7,12 +7,16 @@ import {
   CalendarClock,
   CheckCircle2,
   ImagePlus,
+  Info,
   Loader2,
   MapPin,
   NotebookText,
   Save,
   Ticket,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { useCreateEvent } from "@/lib/hooks";
+import { toastApiError } from "@/lib/toast";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionHeading } from "@/components/colleges/SectionHeading";
 import { TextField } from "@/components/forms/TextField";
@@ -83,15 +87,49 @@ const GALLERY_PRESETS = [
   "from-rose-500 to-red-500",
 ];
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+function buildEventPayload(
+  values: CollegeCreateEventFormValues,
+  collegeId: number | null,
+  status: "draft" | "published",
+): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    title: values.eventName,
+    college_id: collegeId ?? undefined,
+    description: values.description || undefined,
+    venue: values.venue || undefined,
+    starts_at: values.date || undefined,
+    ends_at: values.date || undefined,
+    capacity: values.maxParticipants
+      ? Number(values.maxParticipants)
+      : undefined,
+    registration_open_at: values.registrationStart || undefined,
+    registration_closes_at: values.registrationEnd || undefined,
+    status,
+  };
+  return Object.fromEntries(
+    Object.entries(payload).filter(([, value]) => value !== undefined),
+  );
+}
+
+function NotSavedNote({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-2 rounded-xl border border-dashed border-muted-foreground/30 bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+      <Info className="mt-0.5 h-4 w-4 shrink-0" />
+      <p>{children}</p>
+    </div>
+  );
+}
 
 export default function CollegeCreateEventPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [selectedGallery, setSelectedGallery] = useState<string[]>([
     GALLERY_PRESETS[0],
   ]);
   const [savedOpen, setSavedOpen] = useState<"draft" | "published" | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const createEvent = useCreateEvent();
 
   const form = useForm<CollegeCreateEventFormValues>({
     defaultValues: DEFAULT_VALUES,
@@ -129,16 +167,30 @@ export default function CollegeCreateEventPage() {
     }
     if (!valid) return;
     setIsSubmitting(true);
-    await wait(900);
-    setIsSubmitting(false);
-    setSavedOpen("published");
+    try {
+      await createEvent.mutateAsync(
+        buildEventPayload(values, user?.college_id ?? null, "published"),
+      );
+      setIsSubmitting(false);
+      setSavedOpen("published");
+    } catch (error) {
+      setIsSubmitting(false);
+      toastApiError(error, "Unable to publish event.");
+    }
   };
 
   const handleSaveDraft = async () => {
     setIsSubmitting(true);
-    await wait(700);
-    setIsSubmitting(false);
-    setSavedOpen("draft");
+    try {
+      await createEvent.mutateAsync(
+        buildEventPayload(form.getValues(), user?.college_id ?? null, "draft"),
+      );
+      setIsSubmitting(false);
+      setSavedOpen("draft");
+    } catch (error) {
+      setIsSubmitting(false);
+      toastApiError(error, "Unable to save draft.");
+    }
   };
 
   return (
@@ -199,6 +251,9 @@ export default function CollegeCreateEventPage() {
             maxLength={500}
             optional
           />
+          <NotSavedNote>
+            Category is not saved to the backend yet.
+          </NotSavedNote>
         </section>
 
         <section className="space-y-6 rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6">
@@ -222,6 +277,9 @@ export default function CollegeCreateEventPage() {
             placeholder="e.g. All undergraduate students with a valid college ID"
             optional
           />
+          <NotSavedNote>
+            Rules and eligibility are not saved to the backend yet.
+          </NotSavedNote>
         </section>
 
         <section className="space-y-6 rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6">
@@ -281,6 +339,10 @@ export default function CollegeCreateEventPage() {
               description="Eligible participants receive digital certificates"
             />
           </div>
+          <NotSavedNote>
+            Registration fee, QR entry and certificates are not saved to the
+            backend yet — the schedule and registration window are.
+          </NotSavedNote>
         </section>
 
         <section className="space-y-6 rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6">
@@ -327,6 +389,9 @@ export default function CollegeCreateEventPage() {
               })}
             </div>
           </div>
+          <NotSavedNote>
+            Sponsors and gallery are not saved to the backend yet.
+          </NotSavedNote>
         </section>
 
         <div className="flex flex-col-reverse items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 shadow-card sm:flex-row">

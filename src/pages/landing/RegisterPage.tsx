@@ -20,7 +20,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/forms/TextField";
 import { SelectField } from "@/components/forms/SelectField";
-import { getLandingEvent } from "@/data/landing/events";
+import { PageLoader } from "@/components/common/PageLoader";
+import { useEventBySlug, useRequestOtp } from "@/lib/hooks";
+import { adaptLandingEvent } from "@/lib/adapters";
+import { toastApiError, toastSuccess } from "@/lib/toast";
 import { formatDate } from "@/utils/format";
 import { cn } from "@/utils/cn";
 import {
@@ -45,7 +48,8 @@ const METHOD_ICONS: Record<string, typeof Smartphone> = {
 export function RegisterPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const event = slug ? getLandingEvent(slug) : undefined;
+  const { data, isLoading } = useEventBySlug(slug);
+  const requestOtp = useRequestOtp();
 
   const [step, setStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,6 +66,12 @@ export function RegisterPage() {
     },
     mode: "onTouched",
   });
+
+  if (isLoading) {
+    return <PageLoader />;
+  }
+
+  const event = data ? adaptLandingEvent(data) : undefined;
 
   if (!event) {
     return <Navigate to="/events" replace />;
@@ -88,10 +98,29 @@ export function RegisterPage() {
 
   const handleSubmit = form.handleSubmit(async (values) => {
     setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 1400));
-    navigate(
-      `/verify?event=${event.slug}&name=${encodeURIComponent(values.fullName)}&email=${encodeURIComponent(values.email)}&fee=${event.fee}`,
-    );
+    try {
+      await requestOtp.mutateAsync({
+        eventId: Number(event.id),
+        payload: {
+          email: values.email,
+          name: values.fullName,
+          phone: values.phone,
+          attendee_details: {
+            college: values.college,
+            year: values.year,
+            payment_method: values.paymentMethod,
+          },
+        },
+      });
+      toastSuccess("Verification code sent to your email.");
+      navigate(
+        `/verify?event=${event.slug}&name=${encodeURIComponent(values.fullName)}&email=${encodeURIComponent(values.email)}&fee=${event.fee}`,
+      );
+    } catch (error) {
+      toastApiError(error, "Could not start your registration.");
+    } finally {
+      setIsSubmitting(false);
+    }
   });
 
   return (

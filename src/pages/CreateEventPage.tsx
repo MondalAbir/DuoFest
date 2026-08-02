@@ -30,7 +30,6 @@ import {
 } from "lucide-react";
 import {
   CERTIFICATE_TEMPLATES,
-  EVENT_CATEGORIES,
   SHIFT_SLOTS,
   STEP_FIELDS,
   TIMEZONES,
@@ -39,7 +38,8 @@ import {
   createEventSchema,
   type CreateEventFormValues,
 } from "@/pages/events/createEventSchema";
-import { colleges } from "@/data/colleges";
+import { useColleges, useEventCategories, useCreateEvent, usePublishEvent } from "@/lib/hooks";
+import { toastApiError } from "@/lib/toast";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionHeading } from "@/components/colleges/SectionHeading";
 import { EventStepper, EVENT_STEPS } from "@/components/events/EventStepper";
@@ -59,13 +59,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/utils/cn";
-
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const categoryOptions = EVENT_CATEGORIES.map((category) => ({
-  value: category,
-  label: category,
-}));
 
 const timezoneOptions = TIMEZONES.map((timezone) => ({
   value: timezone,
@@ -87,10 +80,41 @@ const slotOptions = SHIFT_SLOTS.map((slot) => ({
   label: slot,
 }));
 
+function buildEventPayload(
+  values: CreateEventFormValues,
+  collegeIdByName: Map<string, string>,
+  status: "draft" | "published",
+): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    title: values.eventName,
+    college_id: collegeIdByName.get(values.hostCollege) ?? null,
+    description: values.description || undefined,
+    venue: values.venueName || undefined,
+    starts_at: `${values.startDate}T${values.startTime || "00:00"}`,
+    ends_at: `${values.endDate}T${values.endTime || "00:00"}`,
+    capacity: values.maxCapacity ? Number(values.maxCapacity) : undefined,
+    registration_enabled: true,
+    registration_closes_at: values.registrationDeadline || undefined,
+    status,
+  };
+  return Object.fromEntries(
+    Object.entries(payload).filter(([, value]) => value !== undefined),
+  );
+}
+
 interface SummaryRowProps {
   label: string;
   value: string;
   muted?: boolean;
+}
+
+function NotSavedNote({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-2 rounded-xl border border-dashed border-muted-foreground/30 bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+      <Info className="mt-0.5 h-4 w-4 shrink-0" />
+      <p>{children}</p>
+    </div>
+  );
 }
 
 function SummaryRow({ label, value, muted }: SummaryRowProps) {
@@ -139,6 +163,28 @@ export default function CreateEventPage() {
   const [publishedOpen, setPublishedOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const { data: collegesData } = useColleges({ perPage: 100 });
+  const { data: categoriesData } = useEventCategories();
+  const createEvent = useCreateEvent();
+  const publishEvent = usePublishEvent();
+
+  const collegeItems = collegesData?.items ?? [];
+  const collegeOptions = collegeItems.map((college) => ({
+    value: college.name,
+    label: college.name,
+  }));
+  const collegeIdByName = useMemo(
+    () =>
+      new Map(
+        collegeItems.map((college) => [college.name, String(college.id)]),
+      ),
+    [collegeItems],
+  );
+  const categoryOptions = (categoriesData?.items ?? []).map((category) => ({
+    value: category.name,
+    label: category.name,
+  }));
+
   const form = useForm<CreateEventFormValues>({
     resolver: zodResolver(createEventSchema),
     defaultValues: createEventDefaultValues,
@@ -155,15 +201,6 @@ export default function CreateEventPage() {
     control: form.control,
     name: "sponsors",
   });
-
-  const collegeOptions = useMemo(
-    () =>
-      colleges.map((college) => ({
-        value: college.name,
-        label: college.name,
-      })),
-    [],
-  );
 
   const errorSteps = STEP_FIELDS.flatMap((fields, index) =>
     fields.some((field) => form.formState.errors[field]) ? [index] : [],
@@ -195,16 +232,31 @@ export default function CreateEventPage() {
       return;
     }
     setIsSubmitting(true);
-    await wait(900);
-    setIsSubmitting(false);
-    setPublishedOpen(true);
+    try {
+      const created = await createEvent.mutateAsync(
+        buildEventPayload(values, collegeIdByName, "draft"),
+      );
+      await publishEvent.mutateAsync(created.id);
+      setIsSubmitting(false);
+      setPublishedOpen(true);
+    } catch (error) {
+      setIsSubmitting(false);
+      toastApiError(error, "Unable to publish event.");
+    }
   };
 
   const handleSaveDraft = async () => {
     setIsSubmitting(true);
-    await wait(700);
-    setIsSubmitting(false);
-    setDraftOpen(true);
+    try {
+      await createEvent.mutateAsync(
+        buildEventPayload(values, collegeIdByName, "draft"),
+      );
+      setIsSubmitting(false);
+      setDraftOpen(true);
+    } catch (error) {
+      setIsSubmitting(false);
+      toastApiError(error, "Unable to save draft.");
+    }
   };
 
   const values = form.getValues();
@@ -282,6 +334,9 @@ export default function CreateEventPage() {
               maxLength={500}
               optional
             />
+            <NotSavedNote>
+              Category and organizer are not saved to the backend yet.
+            </NotSavedNote>
           </div>
         )}
 
@@ -304,6 +359,9 @@ export default function CreateEventPage() {
                 />
               )}
             />
+            <NotSavedNote>
+              Banner upload is not saved to the backend yet.
+            </NotSavedNote>
           </div>
         )}
 
@@ -350,6 +408,10 @@ export default function CreateEventPage() {
                 className="sm:col-span-2"
               />
             </div>
+            <NotSavedNote>
+              Address, city, state and map link are not saved to the backend
+              yet — only the venue name is.
+            </NotSavedNote>
           </div>
         )}
 
@@ -393,6 +455,9 @@ export default function CreateEventPage() {
                 className="col-span-2"
               />
             </div>
+            <NotSavedNote>
+              Timezone is not saved to the backend yet.
+            </NotSavedNote>
           </div>
         )}
 
@@ -432,6 +497,10 @@ export default function CreateEventPage() {
               label="Require online payment"
               description="Attendees must pay online before registration is confirmed"
             />
+            <NotSavedNote>
+              Registration fee and the online payment toggle are not saved to
+              the backend yet — the deadline and capacity are.
+            </NotSavedNote>
           </div>
         )}
 
@@ -519,6 +588,9 @@ export default function CreateEventPage() {
                 </p>
               )}
             </div>
+            <NotSavedNote>
+              Volunteer shifts and counts are not saved to the backend yet.
+            </NotSavedNote>
           </div>
         )}
 
@@ -550,6 +622,10 @@ export default function CreateEventPage() {
               label="Auto-generate certificates"
               description="Certificates are created automatically once an event is completed"
             />
+            <NotSavedNote>
+              Certificate template, issuer and auto-generation are not saved to
+              the backend yet.
+            </NotSavedNote>
           </div>
         )}
 
@@ -620,6 +696,9 @@ export default function CreateEventPage() {
               <Plus className="h-4 w-4" />
               Add sponsor
             </Button>
+            <NotSavedNote>
+              Sponsors are not saved to the backend yet.
+            </NotSavedNote>
           </div>
         )}
 

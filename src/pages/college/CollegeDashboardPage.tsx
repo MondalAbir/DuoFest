@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { CalendarDays, Sparkles } from "lucide-react";
-import { collegeStats } from "@/data/college/dashboard";
+import type { CollegeStat } from "@/data/college/dashboard";
+import { useAuth } from "@/context/AuthContext";
+import { useEvents } from "@/lib/hooks";
+import { adaptEvent } from "@/lib/adapters";
 import { formatDate } from "@/utils/format";
 import { StatisticsCard } from "@/components/college/StatisticsCard";
 import { DashboardChart } from "@/components/college/DashboardChart";
@@ -40,14 +42,85 @@ function DashboardSkeleton() {
 }
 
 export default function CollegeDashboardPage() {
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const currentUserCollegeId = user?.college_id ?? undefined;
+  const { data: eventsData, isLoading } = useEvents({
+    college_id: currentUserCollegeId,
+    perPage: 100,
+  });
 
-  useEffect(() => {
-    const timeout = setTimeout(() => setLoading(false), 700);
-    return () => clearTimeout(timeout);
-  }, []);
+  const events = (eventsData?.items ?? []).map(adaptEvent);
+  const now = new Date();
 
-  if (loading) return <DashboardSkeleton />;
+  const collegeStats: CollegeStat[] = [
+    {
+      id: "cs-total-events",
+      label: "Total Events",
+      value: events.length,
+      growth: 0,
+      icon: "calendar",
+      tileGradient: "from-indigo-500 to-violet-500",
+      softGradient: "from-indigo-500/[0.07]",
+      tint: "text-indigo-500",
+    },
+    {
+      id: "cs-upcoming-events",
+      label: "Upcoming Events",
+      value: events.filter(
+        (event) => event.status === "upcoming" || new Date(event.date) > now,
+      ).length,
+      growth: 0,
+      icon: "sparkles",
+      tileGradient: "from-sky-500 to-blue-500",
+      softGradient: "from-sky-500/[0.07]",
+      tint: "text-sky-500",
+    },
+    {
+      id: "cs-registrations",
+      label: "Total Registrations",
+      value: events.reduce((sum, event) => sum + event.registrations, 0),
+      growth: 0,
+      icon: "ticket",
+      tileGradient: "from-fuchsia-500 to-purple-500",
+      softGradient: "from-fuchsia-500/[0.07]",
+      tint: "text-fuchsia-500",
+    },
+    {
+      id: "cs-checkins",
+      label: "Today's Check-ins",
+      value: 0,
+      growth: 0,
+      icon: "qr",
+      tileGradient: "from-emerald-500 to-teal-500",
+      softGradient: "from-emerald-500/[0.07]",
+      tint: "text-emerald-500",
+    },
+    {
+      id: "cs-volunteers",
+      label: "Total Volunteers",
+      value: 0,
+      growth: 0,
+      icon: "users",
+      tileGradient: "from-amber-500 to-orange-500",
+      softGradient: "from-amber-500/[0.07]",
+      tint: "text-amber-500",
+    },
+    {
+      id: "cs-revenue",
+      label: "Total Revenue",
+      value: 0,
+      prefix: "$",
+      growth: 0,
+      icon: "wallet",
+      tileGradient: "from-rose-500 to-pink-500",
+      softGradient: "from-rose-500/[0.07]",
+      tint: "text-rose-500",
+    },
+  ];
+
+  if (isLoading) return <DashboardSkeleton />;
+
+  const firstName = user?.name?.split(" ")[0] ?? "there";
 
   return (
     <div className="space-y-6">
@@ -68,7 +141,7 @@ export default function CollegeDashboardPage() {
           </span>
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          Welcome back, Rahul!
+          Welcome back, {firstName}!
         </h1>
         <p className="text-sm text-muted-foreground sm:text-[15px]">
           Here's what's happening in your college today.

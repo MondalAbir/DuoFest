@@ -12,7 +12,8 @@ import {
   Timer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getLandingEvent } from "@/data/landing/events";
+import { useEventBySlug } from "@/lib/hooks";
+import { adaptLandingEvent } from "@/lib/adapters";
 import { formatDate } from "@/utils/format";
 import { cn } from "@/utils/cn";
 
@@ -64,11 +65,20 @@ export function SuccessPage() {
   const name = searchParams.get("name") ?? "";
   const email = searchParams.get("email") ?? "";
   const ticket = searchParams.get("ticket") ?? "DF-XXXXX";
-  const event = slug ? getLandingEvent(slug) : undefined;
+  const { data: apiEvent, isLoading } = useEventBySlug(slug || undefined);
+  const event = apiEvent ? adaptLandingEvent(apiEvent) : undefined;
   const [downloaded, setDownloaded] = useState(false);
 
-  if (!event) {
+  if (!slug || (!isLoading && !event)) {
     return <Navigate to="/events" replace />;
+  }
+
+  if (!event || isLoading) {
+    return (
+      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
   }
 
   return (

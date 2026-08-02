@@ -12,13 +12,13 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import {
-  collegeEvents,
-  type CollegeEvent,
-  type CollegeEventStatus,
-} from "@/data/college/events";
+import type { CollegeEvent, CollegeEventStatus } from "@/data/college/events";
+import { useAuth } from "@/context/AuthContext";
+import { useEvents } from "@/lib/hooks";
+import { adaptCollegeEvent } from "@/lib/adapters";
 import { formatCompact, formatCurrency, formatDate } from "@/utils/format";
 import { PageHeader } from "@/components/common/PageHeader";
+import { PageLoader } from "@/components/common/PageLoader";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
@@ -163,30 +163,43 @@ function EventCard({
 
 export default function CollegeMyEventsPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("upcoming");
+
+  const { data: eventsData, isLoading } = useEvents({
+    college_id: user?.college_id ?? undefined,
+    perPage: 100,
+  });
+
+  const events = useMemo(
+    () => (eventsData?.items ?? []).map(adaptCollegeEvent),
+    [eventsData],
+  );
 
   const groups = useMemo(
     () =>
       TABS.map((tab) => ({
         ...tab,
-        events: collegeEvents.filter((event) =>
-          tab.statuses.includes(event.status),
-        ),
+        events: events.filter((event) => tab.statuses.includes(event.status)),
       })),
-    [],
+    [events],
   );
 
   const active = groups.find((group) => group.value === activeTab)!;
   const total = useMemo(
-    () => collegeEvents.reduce((sum, event) => sum + event.registrations, 0),
-    [],
+    () => events.reduce((sum, event) => sum + event.registrations, 0),
+    [events],
   );
+
+  if (isLoading) {
+    return <PageLoader />;
+  }
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="My Events"
-        subtitle={`${collegeEvents.length} events · ${formatCompact(total)} registrations`}
+        subtitle={`${events.length} events · ${formatCompact(total)} registrations`}
         actions={
           <Button
             className="gap-2"

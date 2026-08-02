@@ -3,9 +3,9 @@ import { useNavigate } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import { CornerDownLeft, Search, SearchX } from "lucide-react";
 import { collegeNavItems } from "@/config/collegeNavigation";
-import { collegeEvents } from "@/data/college/events";
-import { recentRegistrations } from "@/data/college/registrations";
-import { volunteers } from "@/data/admins";
+import { useAuth } from "@/context/AuthContext";
+import { useEvents, useRegistrations } from "@/lib/hooks";
+import { adaptEvent, adaptRegistration } from "@/lib/adapters";
 import { formatDateShort } from "@/utils/format";
 import { cn } from "@/utils/cn";
 
@@ -31,6 +31,17 @@ export function CollegeSearchDialog({
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
+
+  const currentUserCollegeId = user?.college_id ?? undefined;
+  const { data: eventsData } = useEvents({
+    college_id: currentUserCollegeId,
+    perPage: 100,
+  });
+  const { data: registrationsData } = useRegistrations({ perPage: 100 });
+
+  const collegeEvents = (eventsData?.items ?? []).map(adaptEvent);
+  const recentRegistrations = (registrationsData?.items ?? []).map(adaptRegistration);
 
   useEffect(() => {
     if (open) {
@@ -67,7 +78,7 @@ export function CollegeSearchDialog({
         id: `event-${event.id}`,
         group: "Events",
         title: event.name,
-        subtitle: `${event.venue} · ${formatDateShort(event.date)}`,
+        subtitle: `${event.category} · ${formatDateShort(event.date)}`,
         action: go("/admin/college/my-events"),
         hint: "Event",
       }));
@@ -84,25 +95,12 @@ export function CollegeSearchDialog({
         hint: "Registration",
       }));
 
-    const volunteerResults: CollegeSearchResult[] = volunteers
-      .filter((vol) => vol.name.toLowerCase().includes(q))
-      .slice(0, 4)
-      .map((vol) => ({
-        id: `vol-${vol.id}`,
-        group: "Volunteers",
-        title: vol.name,
-        subtitle: vol.eventName,
-        action: go("/admin/college/volunteers"),
-        hint: "Volunteer",
-      }));
-
     return [
       ...pageResults,
       ...eventResults,
       ...registrationResults,
-      ...volunteerResults,
     ];
-  }, [query, navigate, onOpenChange]);
+  }, [query, navigate, onOpenChange, collegeEvents, recentRegistrations]);
 
   useEffect(() => {
     setSelectedIndex(0);
@@ -159,7 +157,7 @@ export function CollegeSearchDialog({
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Search events, registrations, volunteers…"
+                placeholder="Search events, registrations…"
                 className="h-13 w-full bg-transparent py-4 text-sm text-foreground outline-none placeholder:text-muted-foreground"
                 aria-label="Search"
               />

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Bell, CreditCard, Building2, CalendarDays, AlertTriangle } from "lucide-react";
 import type { NotificationItem } from "@/types";
-import { notifications } from "@/data/dashboard";
+import { useActivityLogs } from "@/lib/hooks";
+import { adaptActivityEntry } from "@/lib/adapters";
 import { timeAgo } from "@/utils/format";
 import {
   DropdownMenu,
@@ -23,14 +24,33 @@ const KIND_STYLES: Record<
   alert: { icon: AlertTriangle, classes: "bg-danger/10 text-danger" },
 };
 
+const KIND_MAP: Record<string, NotificationItem["kind"]> = {
+  payment: "payment",
+  college: "college",
+  event: "event",
+  admin: "alert",
+  system: "alert",
+};
+
 export function NotificationsMenu() {
-  const [items, setItems] = useState<NotificationItem[]>(notifications);
-  const unreadCount = items.filter((item) => !item.read).length;
+  const { data, isLoading } = useActivityLogs({ perPage: 8 });
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
+
+  const display: NotificationItem[] = (data?.items ?? []).map((log) => {
+    const entry = adaptActivityEntry(log);
+    return {
+      id: entry.id,
+      title: entry.title,
+      description: entry.description,
+      time: entry.time,
+      read: readIds.has(entry.id),
+      kind: KIND_MAP[entry.type] ?? "alert",
+    };
+  });
+  const unreadCount = display.filter((item) => !item.read).length;
 
   const markAllRead = () => {
-    setItems((current) =>
-      current.map((item) => ({ ...item, read: true })),
-    );
+    setReadIds(new Set(display.map((item) => item.id)));
   };
 
   return (
@@ -70,7 +90,19 @@ export function NotificationsMenu() {
         </div>
         <DropdownMenuSeparator />
         <div className="scrollbar-thin max-h-[380px] overflow-y-auto px-1.5 py-1.5">
-          {items.map((item) => {
+          {isLoading
+            ? Array.from({ length: 4 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="h-14 animate-pulse rounded-xl bg-muted"
+                />
+              ))
+            : display.length === 0 && (
+                <p className="px-2.5 py-6 text-center text-sm text-muted-foreground">
+                  No recent activity
+                </p>
+              )}
+          {!isLoading && display.map((item) => {
             const config = KIND_STYLES[item.kind];
             const Icon = config.icon;
             return (
@@ -81,8 +113,7 @@ export function NotificationsMenu() {
                   "flex w-full items-start gap-3 rounded-xl px-2.5 py-2.5 text-left transition-colors hover:bg-muted",
                   !item.read && "bg-primary/[0.03]",
                 )}
-              >
-                <span
+              >                <span
                   className={cn(
                     "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
                     config.classes,

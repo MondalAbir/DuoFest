@@ -1,33 +1,48 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { SearchX } from "lucide-react";
-import { entryStats, volunteerEntries } from "@/data/volunteer/entries";
+import { useTodayEntries } from "@/lib/hooks";
+import { adaptVolunteerEntry } from "@/lib/adapters";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchInput } from "@/components/common/SearchInput";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { cn } from "@/utils/cn";
 
-const SUMMARY = [
-  { label: "Today's Entries", value: entryStats.total, tint: "text-foreground" },
-  { label: "Successful", value: entryStats.successful, tint: "text-success" },
-  { label: "Rejected", value: entryStats.rejected, tint: "text-danger" },
-  { label: "Duplicate", value: entryStats.duplicate, tint: "text-warning" },
-];
-
 export default function VolunteerEntriesPage() {
   const [query, setQuery] = useState("");
+  const { data: todayEntries } = useTodayEntries();
+
+  const entries = useMemo(
+    () => (todayEntries ?? []).map(adaptVolunteerEntry),
+    [todayEntries],
+  );
+
+  const summary = useMemo(() => {
+    const total = entries.length;
+    const successful = entries.filter((entry) => entry.status === "checked-in").length;
+    const rejected = entries.filter((entry) => entry.status === "rejected").length;
+    const duplicate = entries.filter((entry) => entry.status === "duplicate").length;
+    return { total, successful, rejected, duplicate };
+  }, [entries]);
+
+  const SUMMARY = [
+    { label: "Today's Entries", value: summary.total, tint: "text-foreground" },
+    { label: "Successful", value: summary.successful, tint: "text-success" },
+    { label: "Rejected", value: summary.rejected, tint: "text-danger" },
+    { label: "Duplicate", value: summary.duplicate, tint: "text-warning" },
+  ];
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return volunteerEntries;
-    return volunteerEntries.filter(
+    if (!q) return entries;
+    return entries.filter(
       (entry) =>
         entry.studentName.toLowerCase().includes(q) ||
         entry.ticketId.toLowerCase().includes(q) ||
         entry.college.toLowerCase().includes(q),
     );
-  }, [query]);
+  }, [query, entries]);
 
   return (
     <div className="space-y-5 sm:space-y-6">
@@ -157,7 +172,7 @@ export default function VolunteerEntriesPage() {
             </ul>
 
             <div className="border-t border-border px-5 py-3 text-xs text-muted-foreground">
-              Showing {filtered.length} of {volunteerEntries.length} records
+              Showing {filtered.length} of {entries.length} records
             </div>
           </>
         )}

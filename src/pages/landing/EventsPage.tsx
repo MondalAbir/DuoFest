@@ -5,30 +5,49 @@ import { Button } from "@/components/ui/button";
 import { EventCard } from "@/components/landing/EventCard";
 import { StatCounter } from "@/components/landing/StatCounter";
 import { SectionHeading } from "@/components/landing/SectionHeading";
-import { landingEvents, eventCategories } from "@/data/landing/events";
+import { useEvents } from "@/lib/hooks";
+import { adaptLandingEvent } from "@/lib/adapters";
 import { eventPageStats } from "@/data/landing/statistics";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { cn } from "@/utils/cn";
+
+const EVENT_CATEGORIES = [
+  { value: "All", label: "All Events" },
+  { value: "Technical", label: "Technical" },
+  { value: "Cultural", label: "Cultural" },
+  { value: "Workshop", label: "Workshop" },
+  { value: "Sports", label: "Sports" },
+  { value: "Gaming", label: "Gaming" },
+  { value: "Hackathon", label: "Hackathon" },
+];
 
 export function EventsPage() {
   const [category, setCategory] = useState("All");
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 250);
 
+  const { data, isLoading, isError } = useEvents({
+    perPage: 100,
+    search: debouncedQuery || undefined,
+  });
+
+  const events = useMemo(
+    () => (data?.items ?? []).map(adaptLandingEvent),
+    [data],
+  );
+
   const filtered = useMemo(() => {
-    const q = debouncedQuery.trim().toLowerCase();
-    return landingEvents
+    return events
       .filter((event) => category === "All" || event.category === category)
       .filter(
         (event) =>
-          q === "" ||
-          event.name.toLowerCase().includes(q) ||
-          event.college.toLowerCase().includes(q) ||
-          event.city.toLowerCase().includes(q) ||
-          event.category.toLowerCase().includes(q),
+          debouncedQuery.trim() === "" ||
+          event.name.toLowerCase().includes(debouncedQuery.trim().toLowerCase()) ||
+          event.college.toLowerCase().includes(debouncedQuery.trim().toLowerCase()) ||
+          event.city.toLowerCase().includes(debouncedQuery.trim().toLowerCase()),
       )
       .sort((a, b) => Number(b.featured) - Number(a.featured));
-  }, [category, debouncedQuery]);
+  }, [events, category, debouncedQuery]);
 
   return (
     <>
@@ -51,7 +70,7 @@ export function EventsPage() {
             />
           </div>
           <div className="mt-6 flex flex-wrap justify-center gap-2">
-            {eventCategories.map((item) => (
+            {EVENT_CATEGORIES.map((item) => (
               <button
                 key={item.value}
                 type="button"
@@ -99,7 +118,28 @@ export function EventsPage() {
             </p>
           </div>
 
-          {filtered.length === 0 ? (
+          {isLoading ? (
+            <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="h-72 animate-pulse rounded-2xl border border-border bg-card"
+                />
+              ))}
+            </div>
+          ) : isError ? (
+            <div className="mt-16 flex flex-col items-center text-center">
+              <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-danger/10 text-danger">
+                <CalendarX2 className="h-8 w-8" />
+              </span>
+              <h3 className="mt-6 text-lg font-semibold text-foreground">
+                Failed to load events
+              </h3>
+              <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+                We couldn't reach the server. Please try again in a moment.
+              </p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="mt-16 flex flex-col items-center text-center">
               <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
                 <CalendarX2 className="h-8 w-8" />

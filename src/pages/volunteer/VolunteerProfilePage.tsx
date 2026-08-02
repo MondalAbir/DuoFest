@@ -12,9 +12,10 @@ import {
   Phone,
   Ticket,
 } from "lucide-react";
-import { volunteerProfile } from "@/data/volunteer/profile";
-import { VOLUNTEER_EVENT } from "@/data/volunteer/dashboard";
-import { formatDate } from "@/utils/format";
+import { useAuth } from "@/context/AuthContext";
+import { useVolunteerProfile, useAssignedEvents } from "@/lib/hooks";
+import { getAvatarColor } from "@/utils/constants";
+import { formatDate, formatDateTime } from "@/utils/format";
 import { useCountUp } from "@/hooks/use-count-up";
 import { PageHeader } from "@/components/common/PageHeader";
 import { UserAvatar } from "@/components/common/UserAvatar";
@@ -62,14 +63,37 @@ function InfoTile({
   );
 }
 
+function formatTimeRange(start: string | null, end: string | null): string {
+  if (!start && !end) return "—";
+  if (!start) return formatDateTime(end ?? "");
+  if (!end) return formatDateTime(start);
+  const formatTime = (value: string) =>
+    new Date(value).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return `${formatTime(start)} – ${formatTime(end)}`;
+}
+
 export default function VolunteerProfilePage() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const { data: profile } = useVolunteerProfile();
+  const { data: assignedEvents } = useAssignedEvents();
   const [changeOpen, setChangeOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [loggedOut, setLoggedOut] = useState(false);
 
-  const handleLogout = () => {
+  const assignment = assignedEvents?.[0];
+  const event = assignment?.event;
+
+  const name = profile?.user?.name ?? user?.name ?? "";
+  const email = profile?.user?.email ?? user?.email ?? "";
+  const phone = profile?.user?.phone ?? "—";
+  const userId = profile?.user?.id ?? user?.id ?? 0;
+  const todayScans = profile?.today_entries_count ?? 0;
+  const assignedCount = profile?.assigned_events_count ?? 0;
+
+  const handleLogout = async () => {
     setLogoutOpen(false);
+    await logout();
     setLoggedOut(true);
   };
 
@@ -87,15 +111,15 @@ export default function VolunteerProfilePage() {
         className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-5 shadow-card sm:flex-row sm:items-center sm:p-6"
       >
         <UserAvatar
-          name={volunteerProfile.name}
-          color={volunteerProfile.avatarColor}
+          name={name}
+          color={getAvatarColor(userId)}
           size="lg"
           className="h-20 w-20 text-2xl"
         />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-xl font-bold tracking-tight text-foreground">
-              {volunteerProfile.name}
+              {name}
             </h3>
             <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
               <BadgeCheck className="h-3 w-3" />
@@ -103,23 +127,23 @@ export default function VolunteerProfilePage() {
             </span>
           </div>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {volunteerProfile.id}
+            VLD-{String(userId).padStart(4, "0")}
           </p>
           <div className="mt-3 flex flex-col gap-1.5 text-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:gap-x-5">
             <span className="inline-flex items-center gap-1.5">
               <Mail className="h-3.5 w-3.5" />
-              {volunteerProfile.email}
+              {email}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Phone className="h-3.5 w-3.5" />
-              {volunteerProfile.phone}
+              {phone}
             </span>
           </div>
         </div>
         <div className="grid shrink-0 grid-cols-2 gap-3 text-center">
           <div className="rounded-xl bg-success/10 px-4 py-3">
             <p className="text-xl font-bold tracking-tight text-success">
-              <CountValue value={volunteerProfile.todayScans} />
+              <CountValue value={todayScans} />
             </p>
             <p className="text-[11px] font-medium text-muted-foreground">
               Today's Scans
@@ -127,10 +151,10 @@ export default function VolunteerProfilePage() {
           </div>
           <div className="rounded-xl bg-info/10 px-4 py-3">
             <p className="text-xl font-bold tracking-tight text-info">
-              <CountValue value={volunteerProfile.weeklyScans} />
+              <CountValue value={assignedCount} />
             </p>
             <p className="text-[11px] font-medium text-muted-foreground">
-              Weekly Scans
+              Assigned Events
             </p>
           </div>
         </div>
@@ -140,25 +164,29 @@ export default function VolunteerProfilePage() {
         <InfoTile
           icon={Ticket}
           label="Assigned Event"
-          value={volunteerProfile.eventName}
+          value={event?.title ?? "—"}
           tint="bg-primary/10 text-primary"
         />
         <InfoTile
           icon={DoorOpen}
           label="Assigned Gate"
-          value={volunteerProfile.gate}
+          value={assignment?.role ?? "—"}
           tint="bg-warning/10 text-warning"
         />
         <InfoTile
           icon={Clock4}
           label="Shift"
-          value={volunteerProfile.shift}
+          value={
+            assignment?.shift_start_at
+              ? formatTimeRange(assignment.shift_start_at, assignment.shift_end_at)
+              : "—"
+          }
           tint="bg-info/10 text-info"
         />
         <InfoTile
           icon={CalendarDays}
           label="Joined"
-          value={formatDate(volunteerProfile.joinedAt)}
+          value={formatDate(profile?.user?.created_at ?? user?.created_at ?? "")}
           tint="bg-success/10 text-success"
         />
       </div>
@@ -189,7 +217,7 @@ export default function VolunteerProfilePage() {
       </motion.div>
 
       <p className="text-center text-xs text-muted-foreground">
-        Assigned for {VOLUNTEER_EVENT.name} · {VOLUNTEER_EVENT.date}
+        Assigned for {event?.title ?? "your events"}
       </p>
 
       <ChangePasswordDialog open={changeOpen} onOpenChange={setChangeOpen} />

@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Building2, KeyRound, Megaphone, Save, TicketCheck } from "lucide-react";
+import { Building2, KeyRound, Loader2, Megaphone, Save, TicketCheck } from "lucide-react";
 import { TextField } from "@/components/forms/TextField";
 import { SwitchField } from "@/components/forms/SwitchField";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/context/AuthContext";
+import { useChangePassword } from "@/lib/hooks";
+import { toastApiError, toastError, toastSuccess } from "@/lib/toast";
 import { cn } from "@/utils/cn";
 
 const TABS = [
@@ -111,13 +114,15 @@ function SaveBar({ onSave }: { onSave: () => void }) {
 
 export default function CollegeSettingsPage() {
   const [tab, setTab] = useState<TabKey>("general");
+  const { user } = useAuth();
+  const changePassword = useChangePassword();
 
   const generalForm = useForm<GeneralForm>({
     defaultValues: {
-      collegeName: "Brainware University",
+      collegeName: user?.college?.name ?? "Brainware University",
       shortName: "BWU",
       established: "2015",
-      email: "admin@brainware.edu",
+      email: user?.email ?? "admin@brainware.edu",
       phone: "+91 33 4000 1234",
       address: "Barrackpore, West Bengal",
       description:
@@ -152,6 +157,37 @@ export default function CollegeSettingsPage() {
       confirmPassword: "",
       twoFactor: true,
     },
+  });
+
+  const handleChangePassword = securityForm.handleSubmit(async (values) => {
+    if (!values.currentPassword || !values.newPassword) {
+      toastError("Enter your current and new password.");
+      return;
+    }
+    if (values.newPassword.length < 8) {
+      toastError("New password must be at least 8 characters.");
+      return;
+    }
+    if (values.newPassword !== values.confirmPassword) {
+      toastError("New password and confirmation do not match.");
+      return;
+    }
+    try {
+      await changePassword.mutateAsync({
+        current_password: values.currentPassword,
+        password: values.newPassword,
+        password_confirmation: values.confirmPassword,
+      });
+      toastSuccess("Password changed successfully.");
+      securityForm.reset({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+        twoFactor: securityForm.getValues("twoFactor"),
+      });
+    } catch (error) {
+      toastApiError(error, "Unable to change password.");
+    }
   });
 
   return (
@@ -349,7 +385,7 @@ export default function CollegeSettingsPage() {
       {tab === "security" && (
         <form
           className="space-y-6"
-          onSubmit={securityForm.handleSubmit(() => {})}
+          onSubmit={handleChangePassword}
         >
           <SectionCard
             title="Change Password"
@@ -389,7 +425,18 @@ export default function CollegeSettingsPage() {
               />
             </div>
           </SectionCard>
-          <SaveBar onSave={() => securityForm.handleSubmit(() => {})()} />
+          <Button
+            type="submit"
+            className="gap-2"
+            disabled={changePassword.isPending}
+          >
+            {changePassword.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <KeyRound className="h-4 w-4" />
+            )}
+            Update password
+          </Button>
         </form>
       )}
     </div>

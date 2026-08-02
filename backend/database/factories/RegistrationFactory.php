@@ -30,4 +30,17 @@ class RegistrationFactory extends Factory
             'checked_in_by' => null,
         ];
     }
+
+    /**
+     * A guest registration with no linked account.
+     */
+    public function guest(): static
+    {
+        return $this->state(fn () => [
+            'user_id' => null,
+            'name' => fake()->name(),
+            'email' => fake()->safeEmail(),
+            'phone' => null,
+        ]);
+    }
 }

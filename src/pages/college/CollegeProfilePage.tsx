@@ -11,6 +11,9 @@ import {
   collegeLoginHistory,
   type CollegeActiveDevice,
 } from "@/data/college/profile";
+import { useAuth } from "@/context/AuthContext";
+import { getAvatarColor } from "@/utils/constants";
+import type { UserRole } from "@/lib/api/types";
 import { formatDateTime } from "@/utils/format";
 import { PageHeader } from "@/components/common/PageHeader";
 import { UserAvatar } from "@/components/common/UserAvatar";
@@ -25,6 +28,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+
+const ROLE_LABELS: Record<UserRole, string> = {
+  super_admin: "Super Administrator",
+  college_admin: "College Administrator",
+  event_manager: "Event Manager",
+  volunteer: "Volunteer",
+  student: "Student",
+};
 
 function DeviceRow({
   device,
@@ -77,9 +88,17 @@ function DeviceRow({
 }
 
 export default function CollegeProfilePage() {
+  const { user, roles } = useAuth();
   const [devices, setDevices] = useState(collegeActiveDevices);
 
   const lastLogin = collegeLoginHistory[0];
+
+  const name = user?.name ?? "Guest";
+  const email = user?.email ?? "";
+  const collegeName = user?.college?.name ?? "";
+  const role = (roles[0] as UserRole | undefined) ?? "student";
+  const roleLabel = ROLE_LABELS[role] ?? role;
+  const color = getAvatarColor(user?.id ?? 0);
 
   return (
     <div className="space-y-6">
@@ -90,20 +109,21 @@ export default function CollegeProfilePage() {
 
       <div className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-6 shadow-card sm:flex-row sm:items-center">
         <UserAvatar
-          name="Rahul Banerjee"
-          color="#5B5CEB"
+          name={name}
+          color={color}
           size="lg"
           className="h-20 w-20 text-2xl"
         />
         <div className="min-w-0 flex-1">
           <h3 className="text-xl font-bold tracking-tight text-foreground">
-            Rahul Banerjee
+            {name}
           </h3>
           <p className="text-sm text-muted-foreground">
-            College Admin · Brainware University
+            {roleLabel}
+            {collegeName ? ` · ${collegeName}` : ""}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            rahul.banerjee@brainware.edu · Admin since Aug 2024
+            {email} · Admin since Aug 2024
           </p>
         </div>
         <div className="grid shrink-0 grid-cols-3 gap-3 text-center sm:gap-5">

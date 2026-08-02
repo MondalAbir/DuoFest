@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class Certificate extends Model
@@ -31,6 +32,7 @@ class Certificate extends Model
         'status',
         'issued_at',
         'expires_at',
+        'emailed_at',
     ];
 
     protected function casts(): array
@@ -38,6 +40,7 @@ class Certificate extends Model
         return [
             'issued_at' => 'datetime',
             'expires_at' => 'datetime',
+            'emailed_at' => 'datetime',
             'status' => CertificateStatus::class,
         ];
     }
@@ -75,5 +78,20 @@ class Certificate extends Model
             'registration_id',
             'event_id',
         );
+    }
+
+    public function hasFile(): bool
+    {
+        return $this->file_path !== null;
+    }
+
+    public function getFileUrlAttribute(): ?string
+    {
+        return $this->file_path ? Storage::disk('public')->url($this->file_path) : null;
+    }
+
+    public function contactEmail(): ?string
+    {
+        return $this->registration?->contactEmail() ?? $this->user?->email;
     }
 }

@@ -1,10 +1,14 @@
 import { Activity } from "lucide-react";
-import { platformActivity } from "@/data/activity";
+import { useActivityLogs } from "@/lib/hooks";
+import { adaptActivityEntry } from "@/lib/adapters";
 import { PlatformTimeline } from "./PlatformTimeline";
 import { Link } from "react-router";
 import { ArrowUpRight } from "lucide-react";
 
 export function PlatformActivityWidget() {
+  const { data, isLoading } = useActivityLogs({ perPage: 6 });
+  const items = (data?.items ?? []).map(adaptActivityEntry);
+
   return (
     <div className="flex flex-col rounded-2xl border border-border bg-card p-5 shadow-card transition-shadow duration-300 hover:shadow-card-hover">
       <div className="mb-5 flex items-center justify-between">
@@ -26,7 +30,15 @@ export function PlatformActivityWidget() {
         </Link>
       </div>
       <div className="flex-1">
-        <PlatformTimeline items={platformActivity.slice(0, 6)} />
+        {isLoading ? (
+          <div className="space-y-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="h-8 animate-pulse rounded-lg bg-muted" />
+            ))}
+          </div>
+        ) : (
+          <PlatformTimeline items={items.slice(0, 6)} />
+        )}
       </div>
     </div>
   );

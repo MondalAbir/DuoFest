@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { Eye, MoreHorizontal, Plus } from "lucide-react";
-import { events } from "@/data/events";
+import { useEvents } from "@/lib/hooks";
+import { adaptEvent } from "@/lib/adapters";
 import type { DashboardStat, FestEvent } from "@/types";
 import { searchInArray, filterByStatus } from "@/utils/filter";
 import { formatDate, formatNumber } from "@/utils/format";
@@ -120,6 +121,9 @@ export default function EventsPage() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
 
+  const { data, isLoading } = useEvents({ perPage: 100 });
+  const events = (data?.items ?? []).map(adaptEvent);
+
   const stats = useMemo<DashboardStat[]>(() => [
     {
       id: "events-total",
@@ -153,12 +157,12 @@ export default function EventsPage() {
       icon: "check-circle",
       tint: "warning",
     },
-  ], []);
+  ], [events]);
 
   const filtered = useMemo(() => {
     const searched = searchInArray(events, query, ["name", "collegeName", "category"]);
     return filterByStatus(searched, "status", status);
-  }, [query, status]);
+  }, [query, status, events]);
 
   const columns = useMemo(
     () => buildColumns((event) => navigate(`/admin/events/${event.id}`)),
@@ -205,6 +209,7 @@ export default function EventsPage() {
         data={filtered}
         rowKey={(event) => event.id}
         pageSize={8}
+        loading={isLoading}
         emptyMessage="No events found"
       />
     </div>

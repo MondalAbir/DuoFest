@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\ActivityLog\ActivityLogController;
+use App\Http\Controllers\Api\Analytics\AnalyticsController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\College\CollegeController;
@@ -12,6 +13,8 @@ use App\Http\Controllers\Api\Event\EventMediaController;
 use App\Http\Controllers\Api\Event\EventSponsorController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\Registration\RegistrationController;
+use App\Http\Controllers\Api\Report\ReportController;
+use App\Http\Controllers\Api\Transaction\TransactionController;
 use App\Http\Controllers\Api\User\UserController;
 use App\Http\Controllers\Api\Volunteer\VolunteerController;
 use Illuminate\Support\Facades\Route;
@@ -116,6 +119,23 @@ Route::get('events/{event}', [EventController::class, 'show'])->name('events.sho
 Route::get('event-categories', [EventCategoryController::class, 'index'])->name('event-categories.index');
 Route::get('event-categories/{category}', [EventCategoryController::class, 'show'])->name('event-categories.show');
 
+/*
+|--------------------------------------------------------------------------
+| Guest registration (no account required)
+|--------------------------------------------------------------------------
+|
+| 1. POST /events/{event}/register/request - sends a numeric OTP by email
+| 2. POST /events/{event}/register/verify   - verifies OTP, stores the
+|    registration, issues the encrypted QR ticket and emails the PDF.
+|
+*/
+Route::post('events/{event}/register/request', [RegistrationController::class, 'requestOtp'])
+    ->middleware('throttle:otp')
+    ->name('registrations.request-otp');
+Route::post('events/{event}/register/verify', [RegistrationController::class, 'verifyOtp'])
+    ->middleware('throttle:otp')
+    ->name('registrations.verify-otp');
+
 Route::middleware(['auth:api', 'active'])->group(function () {
     Route::post('events', [EventController::class, 'store'])->middleware('can:create,App\Models\Event')->name('events.store');
     Route::put('events/{event}', [EventController::class, 'update'])->middleware('can:update,event')->name('events.update');
@@ -139,7 +159,10 @@ Route::middleware(['auth:api', 'active'])->group(function () {
     // Event certificates
     Route::get('events/{event}/certificates', [EventCertificateController::class, 'index'])->middleware('can:manageCertificates,event')->name('events.certificates.index');
     Route::post('events/{event}/certificates', [EventCertificateController::class, 'store'])->middleware('can:manageCertificates,event')->name('events.certificates.store');
+    Route::post('events/{event}/certificates/email', [EventCertificateController::class, 'emailAll'])->middleware('can:manageCertificates,event')->name('events.certificates.email-all');
     Route::delete('events/{event}/certificates/{certificate}', [EventCertificateController::class, 'destroy'])->middleware('can:manageCertificates,event')->scopeBindings()->name('events.certificates.destroy');
+    Route::post('events/{event}/certificates/{certificate}/email', [EventCertificateController::class, 'email'])->middleware('can:manageCertificates,event')->scopeBindings()->name('events.certificates.email');
+    Route::get('events/{event}/certificates/{certificate}/download', [EventCertificateController::class, 'download'])->middleware('can:manageCertificates,event')->scopeBindings()->name('events.certificates.download');
 
     // Self-service registration
     Route::post('events/{event}/register', [RegistrationController::class, 'store'])->middleware('permission:registration.create')->name('registrations.store');
@@ -149,6 +172,17 @@ Route::middleware(['auth:api', 'active'])->group(function () {
     Route::post('events/{event}/volunteers', [VolunteerController::class, 'store'])->middleware('permission:volunteer.create')->name('volunteers.store');
     Route::post('events/{event}/volunteers/assign', [VolunteerController::class, 'assign'])->middleware('permission:volunteer.update')->name('volunteers.assign');
     Route::delete('volunteers/{volunteer}', [VolunteerController::class, 'destroy'])->middleware('permission:volunteer.update')->name('volunteers.destroy');
+
+    // Payments / transactions
+    Route::get('transactions', [TransactionController::class, 'index'])->middleware('permission:payment.view_any')->name('transactions.index');
+    Route::post('events/{event}/registrations/{registration}/transactions', [TransactionController::class, 'store'])->middleware('permission:payment.create')->scopeBindings()->name('transactions.store');
+
+    // Reports
+    Route::get('reports/{report}', [ReportController::class, 'show'])->middleware('permission:report.view_any')->name('reports.show');
+    Route::get('reports/{report}/export', [ReportController::class, 'export'])->middleware('permission:report.view_any')->name('reports.export');
+
+    // Analytics
+    Route::get('analytics/dashboard', [AnalyticsController::class, 'dashboard'])->middleware('permission:report.view_any')->name('analytics.dashboard');
 });
 
 /*
@@ -159,6 +193,7 @@ Route::middleware(['auth:api', 'active'])->group(function () {
 Route::middleware(['auth:api', 'active'])->prefix('registrations')->group(function () {
     Route::get('/', [RegistrationController::class, 'index'])->name('registrations.index');
     Route::get('{registration}', [RegistrationController::class, 'show'])->name('registrations.show');
+    Route::get('{registration}/ticket', [RegistrationController::class, 'ticket'])->name('registrations.ticket');
     Route::post('{registration}/cancel', [RegistrationController::class, 'cancel'])->name('registrations.cancel');
     Route::post('{registration}/check-in', [RegistrationController::class, 'checkIn'])->name('registrations.check-in');
 });
@@ -169,6 +204,14 @@ Route::middleware(['auth:api', 'active'])->prefix('registrations')->group(functi
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth:api', 'active'])->get('volunteer/my-volunteering', [VolunteerController::class, 'myVolunteering'])->name('volunteer.my-volunteering');
+
+Route::middleware(['auth:api', 'active', 'permission:volunteer.scan'])->prefix('volunteer')->group(function () {
+    Route::get('profile', [VolunteerController::class, 'profile'])->name('volunteer.profile');
+    Route::get('assigned-events', [VolunteerController::class, 'assignedEvents'])->name('volunteer.assigned-events');
+    Route::get('today-entries', [VolunteerController::class, 'todayEntries'])->name('volunteer.today-entries');
+    Route::post('scan/{event}/validate', [VolunteerController::class, 'validateScan'])->name('volunteer.scan.validate');
+    Route::post('scan/{event}/check-in', [VolunteerController::class, 'checkInScan'])->name('volunteer.scan.check-in');
+});
 
 /*
 |--------------------------------------------------------------------------

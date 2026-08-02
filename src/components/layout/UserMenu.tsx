@@ -1,6 +1,9 @@
 import { useLocation, useNavigate } from "react-router";
 import { ChevronRight, LogOut, Settings, UserRound } from "lucide-react";
 import { UserAvatar } from "@/components/common/UserAvatar";
+import { useAuth } from "@/context/AuthContext";
+import { getAvatarColor } from "@/utils/constants";
+import type { UserRole } from "@/lib/api/types";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,16 +14,32 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const ADMIN = {
-  name: "Adrian Cole",
-  role: "Super Administrator",
-  email: "adrian.duofest@admin.io",
-  color: "#5B5CEB",
+const ROLE_LABELS: Record<UserRole, string> = {
+  super_admin: "Super Administrator",
+  college_admin: "College Administrator",
+  event_manager: "Event Manager",
+  volunteer: "Volunteer",
+  student: "Student",
 };
 
 export function UserMenu() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, roles, logout } = useAuth();
+
+  const name = user?.name ?? "Guest";
+  const email = user?.email ?? "";
+  const role = (roles[0] as UserRole | undefined) ?? "student";
+  const roleLabel = ROLE_LABELS[role] ?? role;
+  const color = getAvatarColor(user?.id ?? 0);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login", {
+      state: { from: location.pathname },
+      replace: true,
+    });
+  };
 
   return (
     <DropdownMenu>
@@ -30,26 +49,26 @@ export function UserMenu() {
           className="flex items-center gap-2.5 rounded-xl border border-transparent p-1.5 transition-colors hover:border-border hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="Open account menu"
         >
-          <UserAvatar name={ADMIN.name} color={ADMIN.color} />
+          <UserAvatar name={name} color={color} />
           <span className="hidden text-left md:block">
             <span className="block text-sm font-semibold leading-tight text-foreground">
-              {ADMIN.name}
+              {name}
             </span>
             <span className="block text-xs leading-tight text-muted-foreground">
-              {ADMIN.role}
+              {roleLabel}
             </span>
           </span>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="flex items-center gap-3 px-2.5 py-2">
-          <UserAvatar name={ADMIN.name} color={ADMIN.color} size="lg" />
+          <UserAvatar name={name} color={color} size="lg" />
           <span>
             <span className="block text-sm font-semibold text-foreground">
-              {ADMIN.name}
+              {name}
             </span>
             <span className="block truncate text-xs text-muted-foreground">
-              {ADMIN.email}
+              {email}
             </span>
           </span>
         </DropdownMenuLabel>
@@ -71,7 +90,7 @@ export function UserMenu() {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={() => navigate("/admin")}
+          onClick={handleLogout}
           className="cursor-pointer text-danger focus:bg-danger/10 focus:text-danger"
         >
           <LogOut />
@@ -82,5 +101,3 @@ export function UserMenu() {
     </DropdownMenu>
   );
 }
-
-export { ADMIN };

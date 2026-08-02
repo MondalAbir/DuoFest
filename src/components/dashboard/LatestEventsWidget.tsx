@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { ArrowUpRight, CalendarDays } from "lucide-react";
-import { events } from "@/data/events";
+import { useEvents } from "@/lib/hooks";
+import { adaptEvent } from "@/lib/adapters";
 import { EventCard } from "@/components/cards/EventCard";
 import type { FestEvent } from "@/types";
 import {
@@ -72,6 +73,8 @@ function EventQuickView({
 
 export function LatestEventsWidget() {
   const [selected, setSelected] = useState<FestEvent | null>(null);
+  const { data, isLoading } = useEvents({ perPage: 6 });
+  const events = (data?.items ?? []).map(adaptEvent);
 
   return (
     <div className="flex flex-col rounded-2xl border border-border bg-card p-5 shadow-card transition-shadow duration-300 hover:shadow-card-hover">
@@ -93,13 +96,20 @@ export function LatestEventsWidget() {
         </Link>
       </div>
       <div className="scrollbar-thin flex-1 space-y-3 overflow-y-auto pr-1">
-        {events.slice(0, 5).map((event) => (
-          <EventCard
-            key={event.id}
-            event={event}
-            onQuickView={setSelected}
-          />
-        ))}
+        {isLoading
+          ? Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-[72px] animate-pulse rounded-xl border border-border bg-card"
+              />
+            ))
+          : events.slice(0, 5).map((event) => (
+              <EventCard
+                key={event.id}
+                event={event}
+                onQuickView={setSelected}
+              />
+            ))}
       </div>
       <EventQuickView event={selected} onClose={() => setSelected(null)} />
     </div>

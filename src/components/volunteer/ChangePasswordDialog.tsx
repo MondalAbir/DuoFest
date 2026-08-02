@@ -3,6 +3,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { CheckCircle2, Loader2, LockKeyhole } from "lucide-react";
+import { useChangePassword } from "@/lib/hooks";
+import { toastApiError, toastError, toastSuccess } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,8 +15,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { TextField } from "@/components/forms/TextField";
-
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const changePasswordSchema = z
   .object({
@@ -53,6 +53,7 @@ export function ChangePasswordDialog({
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const changePassword = useChangePassword();
 
   useEffect(() => {
     if (open) form.reset(defaultValues);
@@ -71,13 +72,21 @@ export function ChangePasswordDialog({
 
   const onSubmit = async (values: ChangePasswordFormValues) => {
     setIsSubmitting(true);
-    await wait(1400);
-    // Dummy submission – replace with an API call later.
-    console.log("Password change (dummy):", { confirm: values.newPassword });
-    setIsSubmitting(false);
-    form.reset(defaultValues);
-    onOpenChange(false);
-    setShowSuccess(true);
+    try {
+      await changePassword.mutateAsync({
+        current_password: values.currentPassword,
+        password: values.newPassword,
+        password_confirmation: values.confirmPassword,
+      });
+      toastSuccess("Password updated");
+      setIsSubmitting(false);
+      form.reset(defaultValues);
+      onOpenChange(false);
+      setShowSuccess(true);
+    } catch (error) {
+      toastApiError(error, "Unable to change password");
+      setIsSubmitting(false);
+    }
   };
 
   return (

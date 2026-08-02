@@ -39,4 +39,11 @@ class VolunteerFactory extends Factory
             'status' => VolunteerStatus::ACCEPTED->value,
         ]);
     }
+
+    public function completed(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => VolunteerStatus::COMPLETED->value,
+        ]);
+    }
 }

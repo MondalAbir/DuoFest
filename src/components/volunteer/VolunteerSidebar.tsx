@@ -1,15 +1,29 @@
 import { NavLink, useNavigate } from "react-router";
 import { LogOut, QrCode } from "lucide-react";
 import { VOLUNTEER_NAV_ITEMS } from "@/config/volunteerNavigation";
+import { useAuth } from "@/context/AuthContext";
+import { useVolunteerProfile, useAssignedEvents } from "@/lib/hooks";
+import { getAvatarColor } from "@/utils/constants";
 import { Logo } from "@/components/common/Logo";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { Separator } from "@/components/ui/separator";
-import { VOLUNTEER_EVENT } from "@/data/volunteer/dashboard";
-import { volunteerProfile } from "@/data/volunteer/profile";
 import { cn } from "@/utils/cn";
 
 export function VolunteerSidebar() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const { data: profile } = useVolunteerProfile();
+  const { data: assignedEvents } = useAssignedEvents();
+
+  const assignment = assignedEvents?.[0];
+  const event = assignment?.event;
+  const displayName = profile?.user?.name ?? user?.name ?? "";
+  const userId = profile?.user?.id ?? user?.id ?? 0;
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login/volunteer");
+  };
 
   return (
     <aside
@@ -55,44 +69,54 @@ export function VolunteerSidebar() {
           })}
         </ul>
 
-        <Separator className="my-4" />
+        {event && (
+          <>
+            <Separator className="my-4" />
 
-        <div className="rounded-xl border border-border bg-card p-3.5 shadow-card">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <QrCode className="h-4 w-4" />
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-xs font-semibold text-foreground">
-                {VOLUNTEER_EVENT.name}
-              </p>
-              <p className="truncate text-[11px] text-muted-foreground">
-                {VOLUNTEER_EVENT.gate} · {VOLUNTEER_EVENT.shift}
-              </p>
+            <div className="rounded-xl border border-border bg-card p-3.5 shadow-card">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <QrCode className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-semibold text-foreground">
+                    {event.title}
+                  </p>
+                  <p className="truncate text-[11px] text-muted-foreground">
+                    {assignment?.role ?? "No gate"} ·{" "}
+                    {assignment?.shift_start_at
+                      ? new Date(assignment.shift_start_at).toLocaleTimeString("en-US", {
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })
+                      : "—"}
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
       </nav>
 
       <div className="border-t border-sidebar-border p-3">
         <div className="mb-3 flex items-center gap-3 rounded-xl px-3 py-2">
           <UserAvatar
-            name={volunteerProfile.name}
-            color={volunteerProfile.avatarColor}
+            name={displayName}
+            color={getAvatarColor(userId)}
             size="sm"
           />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-foreground">
-              {volunteerProfile.name}
+              {displayName}
             </p>
             <p className="truncate text-[11px] text-muted-foreground">
-              {volunteerProfile.id}
+              VLD-{String(userId).padStart(4, "0")}
             </p>
           </div>
         </div>
         <button
           type="button"
-          onClick={() => navigate("/")}
+          onClick={handleLogout}
           className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-danger transition-colors duration-200 hover:bg-danger/10"
         >
           <LogOut className="h-[18px] w-[18px] shrink-0" />

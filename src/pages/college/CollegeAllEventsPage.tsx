@@ -1,10 +1,15 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { Copy, Download, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
-import { collegeEvents, type CollegeEvent } from "@/data/college/events";
+import type { CollegeEvent } from "@/data/college/events";
+import { useAuth } from "@/context/AuthContext";
+import { useDeleteEvent, useEvents } from "@/lib/hooks";
+import { adaptCollegeEvent } from "@/lib/adapters";
+import { toastApiError, toastSuccess } from "@/lib/toast";
 import { searchInArray, filterByStatus } from "@/utils/filter";
 import { formatCompact, formatCurrency, formatDate } from "@/utils/format";
 import { PageHeader } from "@/components/common/PageHeader";
+import { PageLoader } from "@/components/common/PageLoader";
 import { TableToolbar } from "@/components/common/TableToolbar";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { DataTable, type DataTableColumn } from "@/components/tables/DataTable";
@@ -158,17 +163,29 @@ const buildColumns = (
 
 export default function CollegeAllEventsPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
-  const [events, setEvents] = useState<CollegeEvent[]>(collegeEvents);
+  const [overrides, setOverrides] = useState<CollegeEvent[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<CollegeEvent | null>(null);
+
+  const deleteMutation = useDeleteEvent();
+  const { data: eventsData, isLoading } = useEvents({
+    college_id: user?.college_id ?? undefined,
+    perPage: 100,
+  });
+
+  const events = useMemo(
+    () => [...overrides, ...(eventsData?.items ?? []).map(adaptCollegeEvent)],
+    [overrides, eventsData],
+  );
 
   const columns = useMemo(
     () =>
       buildColumns(
         (event) => navigate(`/admin/college/events/${event.id}`),
         (event) =>
-          setEvents((current) => [
+          setOverrides((current) => [
             {
               ...event,
               id: `${event.id}-copy`,
@@ -198,6 +215,10 @@ export default function CollegeAllEventsPage() {
     () => events.reduce((sum, event) => sum + event.revenue, 0),
     [events],
   );
+
+  if (isLoading) {
+    return <PageLoader />;
+  }
 
   return (
     <div className="space-y-6">
@@ -285,11 +306,22 @@ export default function CollegeAllEventsPage() {
         description={`This will permanently delete “${deleteTarget?.name}” and its registrations. This action cannot be undone.`}
         confirmText={deleteTarget?.name ?? ""}
         confirmLabel="Delete Event"
-        onConfirm={() => {
+        onConfirm={async () => {
           if (!deleteTarget) return;
-          setEvents((current) =>
-            current.filter((event) => event.id !== deleteTarget.id),
-          );
+          const target = deleteTarget;
+          if (target.id.endsWith("-copy")) {
+            setOverrides((current) =>
+              current.filter((event) => event.id !== target.id),
+            );
+            setDeleteTarget(null);
+            return;
+          }
+          try {
+            await deleteMutation.mutateAsync(Number(target.id));
+            toastSuccess("Event deleted.");
+          } catch (error) {
+            toastApiError(error, "Unable to delete event.");
+          }
           setDeleteTarget(null);
         }}
       />

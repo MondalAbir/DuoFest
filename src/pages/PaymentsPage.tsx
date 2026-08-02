@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Download, Wallet } from "lucide-react";
-import { payments } from "@/data/payments";
+import { useTransactions } from "@/lib/hooks";
+import { adaptPayment } from "@/lib/adapters";
 import type { DashboardStat, Payment } from "@/types";
 import { searchInArray, filterByStatus } from "@/utils/filter";
 import { formatCurrency, formatDate, formatDateTime } from "@/utils/format";
@@ -67,6 +68,9 @@ export default function PaymentsPage() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
 
+  const { data, isLoading } = useTransactions({ perPage: 100 });
+  const payments = (data?.items ?? []).map(adaptPayment);
+
   const stats = useMemo<DashboardStat[]>(() => {
     const collected = payments
       .filter((p) => p.status === "paid")
@@ -110,7 +114,7 @@ export default function PaymentsPage() {
         tint: "danger",
       },
     ];
-  }, []);
+  }, [payments]);
 
   const filtered = useMemo(() => {
     const searched = searchInArray(payments, query, [
@@ -119,7 +123,7 @@ export default function PaymentsPage() {
       "method",
     ]);
     return filterByStatus(searched, "status", status);
-  }, [query, status]);
+  }, [query, status, payments]);
 
   return (
     <div className="space-y-6">
@@ -174,6 +178,7 @@ export default function PaymentsPage() {
         data={filtered}
         rowKey={(payment) => payment.id}
         pageSize={8}
+        loading={isLoading}
         emptyMessage="No payments found"
       />
     </div>

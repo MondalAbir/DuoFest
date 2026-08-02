@@ -10,17 +10,25 @@ import {
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageLoader } from "@/components/common/PageLoader";
 import { formatDate } from "@/utils/format";
 import { cn } from "@/utils/cn";
-import { getLandingEvent } from "@/data/landing/events";
+import { useEventBySlug } from "@/lib/hooks";
+import { adaptLandingEvent } from "@/lib/adapters";
 
 export function EventDetailsPage() {
   const { slug } = useParams<{ slug: string }>();
-  const event = slug ? getLandingEvent(slug) : undefined;
+  const { data, isLoading, isError } = useEventBySlug(slug);
 
-  if (!event) {
+  if (isLoading) {
+    return <PageLoader />;
+  }
+
+  if (isError || !data) {
     return <Navigate to="/events" replace />;
   }
+
+  const event = adaptLandingEvent(data);
 
   const progress = Math.min((event.registered / event.capacity) * 100, 100);
   const spotsLeft = event.capacity - event.registered;

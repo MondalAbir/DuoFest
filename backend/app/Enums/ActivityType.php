@@ -32,6 +32,9 @@ enum ActivityType: string
     case SPONSOR_REMOVED = 'sponsor_removed';
     case CERTIFICATE_ISSUED = 'certificate_issued';
     case CERTIFICATE_REVOKED = 'certificate_revoked';
+    case OTP_SENT = 'otp_sent';
+    case TICKET_ISSUED = 'ticket_issued';
+    case PAYMENT_RECORDED = 'payment_recorded';
 
     public static function values(): array
     {

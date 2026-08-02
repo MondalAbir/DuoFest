@@ -18,8 +18,9 @@ import { EventCard } from "@/components/landing/EventCard";
 import { CollegeMarquee } from "@/components/landing/CollegeMarquee";
 import { FeatureGrid } from "@/components/landing/FeatureGrid";
 import { TestimonialCard } from "@/components/landing/TestimonialCard";
-import { landingEvents, eventCategories } from "@/data/landing/events";
-import { heroStats } from "@/data/landing/statistics";
+import { useFeaturedEvents, useUpcomingEvents, useEvents, useColleges } from "@/lib/hooks";
+import { adaptLandingEvent } from "@/lib/adapters";
+import type { LandingEvent } from "@/types/landing";
 import { testimonials } from "@/data/landing/testimonials";
 import { cn } from "@/utils/cn";
 
@@ -54,15 +55,41 @@ const HOW_IT_WORKS = [
   },
 ];
 
+const EVENT_CATEGORIES = [
+  { value: "All", label: "All Events" },
+  { value: "Technical", label: "Technical" },
+  { value: "Cultural", label: "Cultural" },
+  { value: "Workshop", label: "Workshop" },
+  { value: "Sports", label: "Sports" },
+  { value: "Gaming", label: "Gaming" },
+  { value: "Hackathon", label: "Hackathon" },
+];
+
 export function HomePage() {
   const [category, setCategory] = useState("All");
-  const visibleEvents = landingEvents
+
+  const { data: featured, isLoading: featuredLoading } = useFeaturedEvents();
+  const { data: upcoming } = useUpcomingEvents();
+  const { data: allEvents } = useEvents({ perPage: 1 });
+  const { data: colleges } = useColleges({ perPage: 1 });
+
+  const sourceEvents = featured && featured.items.length > 0 ? featured.items : (upcoming?.items ?? []);
+  const events: LandingEvent[] = sourceEvents.map(adaptLandingEvent);
+
+  const visibleEvents = events
     .filter((event) => category === "All" || event.category === category)
     .slice(0, 6);
 
+  const heroStats = [
+    { value: colleges?.meta.total ?? 0, label: "Colleges onboard" },
+    { value: allEvents?.meta.total ?? 0, suffix: "+", label: "Events hosted" },
+    { value: 2.4, decimals: 1, suffix: "L+", label: "Student registrations" },
+    { value: 98, suffix: "%", label: "Attendee satisfaction" },
+  ];
+
   return (
     <>
-      <HeroSection />
+      <HeroSection stats={heroStats} />
       <TrustedSection />
       <FeaturesSection />
       <HowItWorksSection />
@@ -70,6 +97,8 @@ export function HomePage() {
         category={category}
         onCategoryChange={setCategory}
         events={visibleEvents}
+        categories={EVENT_CATEGORIES}
+        loading={featuredLoading}
       />
       <TestimonialsSection />
       <CtaSection />
@@ -77,7 +106,7 @@ export function HomePage() {
   );
 }
 
-function HeroSection() {
+function HeroSection({ stats }: { stats: Array<{ value: number; prefix?: string; suffix?: string; decimals?: number; label: string }> }) {
   return (
     <section className="relative overflow-hidden">
       <div
@@ -118,7 +147,7 @@ function HeroSection() {
             </Button>
           </div>
           <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4">
-            {heroStats.map((stat) => (
+            {stats.map((stat) => (
               <div key={stat.label}>
                 <p className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
                   <StatCounter
@@ -312,13 +341,17 @@ function HowItWorksSection() {
 interface FeaturedEventsSectionProps {
   category: string;
   onCategoryChange: (category: string) => void;
-  events: typeof landingEvents;
+  events: LandingEvent[];
+  categories: Array<{ value: string; label: string }>;
+  loading?: boolean;
 }
 
 function FeaturedEventsSection({
   category,
   onCategoryChange,
   events,
+  categories,
+  loading = false,
 }: FeaturedEventsSectionProps) {
   return (
     <section className="py-20 lg:py-28">
@@ -329,7 +362,7 @@ function FeaturedEventsSection({
           description="From 24-hour hackathons to stadium-scale concerts — discover the fests students are talking about."
         />
         <div className="mt-10 flex flex-wrap justify-center gap-2">
-          {eventCategories.map((item) => (
+          {categories.map((item) => (
             <button
               key={item.value}
               type="button"
@@ -346,9 +379,16 @@ function FeaturedEventsSection({
           ))}
         </div>
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {events.map((event) => (
-            <EventCard key={event.id} event={event} />
-          ))}
+          {loading
+            ? Array.from({ length: 3 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="h-72 animate-pulse rounded-2xl border border-border bg-card"
+                />
+              ))
+            : events.map((event) => (
+                <EventCard key={event.id} event={event} />
+              ))}
         </div>
         <div className="mt-12 text-center">
           <Button variant="outline" size="lg" asChild>

@@ -7,6 +7,7 @@ use App\Enums\EventMediaType;
 use App\Enums\EventStatus;
 use App\Enums\RegistrationStatus;
 use App\Enums\UserRole;
+use App\Models\Attendance;
 use App\Models\Certificate;
 use App\Models\College;
 use App\Models\Event;
@@ -271,19 +272,31 @@ class EventManagementTest extends TestCase
             ->assertJsonValidationErrors('tier');
     }
 
-    public function test_certificates_are_issued_to_checked_in_attendees(): void
+    public function test_certificates_are_issued_only_to_attendees_with_attendance(): void
     {
+        Storage::fake('public');
+
         $manager = $this->manager();
         $event = $this->publishedEvent();
         $attendee = $this->createUser(['email' => 'attendee@example.com']);
+        $noShow = $this->createUser(['email' => 'noshow@example.com']);
         $confirmedOnly = $this->createUser(['email' => 'confirmed@example.com']);
 
-        Registration::factory()->create([
+        $attended = Registration::factory()->create([
             'event_id' => $event->id,
             'user_id' => $attendee->id,
             'status' => RegistrationStatus::CHECKED_IN->value,
             'checked_in_at' => now(),
         ]);
+        Attendance::factory()->forRegistration($attended)->create();
+
+        Registration::factory()->create([
+            'event_id' => $event->id,
+            'user_id' => $noShow->id,
+            'status' => RegistrationStatus::CHECKED_IN->value,
+            'checked_in_at' => now(),
+        ]);
+
         Registration::factory()->create([
             'event_id' => $event->id,
             'user_id' => $confirmedOnly->id,
@@ -296,7 +309,7 @@ class EventManagementTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.user_id', $attendee->id);
 
-        $this->assertSame(1, Certificate::query()->where('registration_id', $event->registrations()->first()->id)->count());
+        $this->assertSame(1, Certificate::query()->where('registration_id', $attended->id)->count());
 
         $this->actingAsApi($manager)
             ->postJson("/api/v1/events/{$event->id}/certificates")
@@ -306,6 +319,8 @@ class EventManagementTest extends TestCase
 
     public function test_certificates_can_be_listed_and_revoked(): void
     {
+        Storage::fake('public');
+
         $manager = $this->manager();
         $event = $this->publishedEvent();
         $attendee = $this->createUser();
@@ -316,6 +331,7 @@ class EventManagementTest extends TestCase
             'status' => RegistrationStatus::CHECKED_IN->value,
             'checked_in_at' => now(),
         ]);
+        Attendance::factory()->forRegistration($registration)->create();
 
         $this->actingAsApi($manager)
             ->postJson("/api/v1/events/{$event->id}/certificates", [

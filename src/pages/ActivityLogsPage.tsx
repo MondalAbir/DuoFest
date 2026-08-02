@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { activityLogs } from "@/data/activity";
+import { useActivityLogs } from "@/lib/hooks";
+import { adaptActivityLog } from "@/lib/adapters";
 import type { ActivityLogItem, DashboardStat } from "@/types";
 import { searchInArray, filterByStatus } from "@/utils/filter";
 import { formatDateTime } from "@/utils/format";
@@ -76,6 +77,9 @@ export default function ActivityLogsPage() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
 
+  const { data, isLoading } = useActivityLogs({ perPage: 100 });
+  const activityLogs = (data?.items ?? []).map(adaptActivityLog);
+
   const stats = useMemo<DashboardStat[]>(() => [
     {
       id: "log-today",
@@ -111,7 +115,7 @@ export default function ActivityLogsPage() {
       icon: "check-circle",
       tint: "info",
     },
-  ], []);
+  ], [activityLogs]);
 
   const filtered = useMemo(() => {
     const searched = searchInArray(activityLogs, query, [
@@ -121,7 +125,7 @@ export default function ActivityLogsPage() {
       "ip",
     ]);
     return filterByStatus(searched, "status", status);
-  }, [query, status]);
+  }, [query, status, activityLogs]);
 
   return (
     <div className="space-y-6">
@@ -157,6 +161,7 @@ export default function ActivityLogsPage() {
         rowKey={(log) => log.id}
         pageSize={8}
         emptyMessage="No activity found"
+        loading={isLoading}
       />
     </div>
   );

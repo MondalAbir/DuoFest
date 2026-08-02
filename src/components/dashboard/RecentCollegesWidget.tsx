@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { ArrowUpRight, Building2 } from "lucide-react";
-import { colleges } from "@/data/colleges";
+import { useColleges } from "@/lib/hooks";
+import { adaptCollege } from "@/lib/adapters";
 import { formatDate } from "@/utils/format";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -68,6 +69,9 @@ const columns: DataTableColumn<College>[] = [
 ];
 
 export function RecentCollegesWidget() {
+  const { data, isLoading } = useColleges({ perPage: 6 });
+  const colleges = (data?.items ?? []).map(adaptCollege);
+
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-shadow duration-300 hover:shadow-card-hover">
       <div className="flex items-center justify-between px-6 pt-5">
@@ -95,6 +99,7 @@ export function RecentCollegesWidget() {
           rowKey={(college) => college.id}
           pageSize={6}
           compact
+          loading={isLoading}
         />
       </div>
     </div>

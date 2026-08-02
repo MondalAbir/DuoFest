@@ -10,7 +10,10 @@ import {
   Timer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getLandingEvent } from "@/data/landing/events";
+import { PageLoader } from "@/components/common/PageLoader";
+import { useEventBySlug, useRequestOtp, useVerifyOtp } from "@/lib/hooks";
+import { adaptLandingEvent } from "@/lib/adapters";
+import { toastApiError } from "@/lib/toast";
 import { cn } from "@/utils/cn";
 
 const OTP_LENGTH = 6;
@@ -23,7 +26,9 @@ export function OtpPage() {
   const name = searchParams.get("name") ?? "there";
   const email = searchParams.get("email") ?? "";
 
-  const event = slug ? getLandingEvent(slug) : undefined;
+  const { data, isLoading } = useEventBySlug(slug);
+  const verifyOtp = useVerifyOtp();
+  const requestOtp = useRequestOtp();
 
   const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const [seconds, setSeconds] = useState(OTP_COUNTDOWN);
@@ -46,6 +51,12 @@ export function OtpPage() {
     const timer = setInterval(() => setSeconds((value) => value - 1), 1000);
     return () => clearInterval(timer);
   }, [seconds]);
+
+  if (isLoading) {
+    return <PageLoader />;
+  }
+
+  const event = data ? adaptLandingEvent(data) : undefined;
 
   if (!event) {
     return <Navigate to="/events" replace />;
@@ -86,13 +97,34 @@ export function OtpPage() {
     if (!complete) return;
     setIsVerifying(true);
     setError(null);
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-    navigate(
-      `/success?event=${slug}&name=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}&ticket=DF-TN-${Math.floor(10000 + Math.random() * 89999)}`,
-    );
+    try {
+      const registration = await verifyOtp.mutateAsync({
+        eventId: Number(event.id),
+        email,
+        otp: code,
+      });
+      const ticket = registration.ticket_number ?? `DF-TN-${Math.floor(10000 + Math.random() * 89999)}`;
+      navigate(
+        `/success?event=${slug}&name=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}&ticket=${encodeURIComponent(ticket)}`,
+      );
+    } catch (verifyError) {
+      const message =
+        verifyError instanceof Error ? verifyError.message : "Invalid code. Please try again.";
+      setError(message);
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
-  const resend = () => {
+  const resend = async () => {
+    try {
+      await requestOtp.mutateAsync({
+        eventId: Number(event.id),
+        payload: { email, name },
+      });
+    } catch (requestError) {
+      toastApiError(requestError, "Could not resend the code.");
+    }
     setSeconds(OTP_COUNTDOWN);
     setDigits(Array(OTP_LENGTH).fill(""));
     setError(null);
@@ -223,7 +255,7 @@ export function OtpPage() {
 
         <p className="mt-5 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
           <ShieldCheck className="h-3.5 w-3.5" />
-          Demo mode — any 6-digit code works. In production, a real OTP is sent.
+          We emailed a 6-digit code to {email || "your inbox"}. Check spam too.
         </p>
       </div>
     </div>

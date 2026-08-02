@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CircleDot } from "lucide-react";
 import {
@@ -7,8 +7,9 @@ import {
   lookupTicket,
   type ScanOutcome,
 } from "@/data/volunteer/scanner";
-import { VOLUNTEER_EVENT } from "@/data/volunteer/dashboard";
-import { entryStats, volunteerEntries } from "@/data/volunteer/entries";
+import { useVolunteerProfile, useAssignedEvents, useTodayEntries } from "@/lib/hooks";
+import { adaptVolunteerEntry } from "@/lib/adapters";
+import type { VolunteerEntryRecord } from "@/data/volunteer/entries";
 import { ScannerCamera } from "@/components/volunteer/ScannerCamera";
 import { ScanResultPanel } from "@/components/volunteer/ScanResultPanel";
 import { ScanToolbar } from "@/components/volunteer/ScanToolbar";
@@ -17,15 +18,15 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { playScanSound } from "@/utils/scan-sound";
 
-function ScannerHeader() {
+function ScannerHeader({ gate }: { gate: string }) {
   return (
     <div className="flex items-center justify-between gap-3 lg:hidden">
       <div className="min-w-0">
         <p className="truncate text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-          {VOLUNTEER_EVENT.name}
+          Scan Desk
         </p>
         <h1 className="truncate text-xl font-bold tracking-tight text-foreground">
-          {VOLUNTEER_GATE}
+          {gate}
         </h1>
       </div>
       <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-success/10 px-3 py-1.5 text-xs font-semibold text-success">
@@ -36,20 +37,25 @@ function ScannerHeader() {
   );
 }
 
-const MINI_STATS = [
-  { label: "Students Entered", value: VOLUNTEER_EVENT.entered, tint: "text-success" },
-  { label: "Successful", value: entryStats.successful, tint: "text-info" },
-  { label: "Rejected", value: entryStats.rejected, tint: "text-danger" },
-  { label: "Duplicate", value: entryStats.duplicate, tint: "text-warning" },
+const MINI_STATS = (entered: number, entries: VolunteerEntryRecord[]) => [
+  { label: "Students Entered", value: entered, tint: "text-success" },
+  { label: "Successful", value: entries.filter((entry) => entry.status === "checked-in").length, tint: "text-info" },
+  { label: "Rejected", value: entries.filter((entry) => entry.status === "rejected").length, tint: "text-danger" },
+  { label: "Duplicate", value: entries.filter((entry) => entry.status === "duplicate").length, tint: "text-warning" },
 ];
 
 function ScanSidePanel({
   outcome,
   onReturn,
+  entered,
+  entries,
 }: {
   outcome: ScanOutcome | null;
   onReturn: () => void;
+  entered: number;
+  entries: VolunteerEntryRecord[];
 }) {
+  const miniStats = MINI_STATS(entered, entries);
   return (
     <div className="hidden min-h-0 flex-1 flex-col gap-4 lg:flex">
       <AnimatePresence mode="wait">
@@ -92,7 +98,7 @@ function ScanSidePanel({
                 Today's Summary
               </h3>
               <div className="mt-4 grid grid-cols-2 gap-3">
-                {MINI_STATS.map((stat) => (
+                {miniStats.map((stat) => (
                   <div
                     key={stat.label}
                     className="rounded-xl bg-muted/50 px-3.5 py-3"
@@ -115,7 +121,7 @@ function ScanSidePanel({
                 Last Five Entries
               </h3>
               <ul className="mt-2 divide-y divide-border">
-                {volunteerEntries.slice(0, 5).map((entry) => (
+                {entries.slice(0, 5).map((entry) => (
                   <li
                     key={entry.id}
                     className="flex items-center gap-3 py-2.5"
@@ -151,12 +157,22 @@ function ScanSidePanel({
 }
 
 export default function VolunteerScanPage() {
+  const { data: profile } = useVolunteerProfile();
+  const { data: assignedEvents } = useAssignedEvents();
+  const { data: todayEntries } = useTodayEntries();
   const [status, setStatus] = useState<"scanning" | "result">("scanning");
   const [outcome, setOutcome] = useState<ScanOutcome | null>(null);
   const [flash, setFlash] = useState(false);
   const [camera, setCamera] = useState<"rear" | "front">("rear");
   const [manualOpen, setManualOpen] = useState(false);
   const cycleRef = useRef(0);
+
+  const gate = assignedEvents?.[0]?.role ?? VOLUNTEER_GATE;
+  const entered = profile?.today_entries_count ?? 0;
+  const entries = useMemo(
+    () => (todayEntries ?? []).map(adaptVolunteerEntry),
+    [todayEntries],
+  );
 
   const presentOutcome = useCallback((next: ScanOutcome) => {
     setOutcome(next);
@@ -190,7 +206,7 @@ export default function VolunteerScanPage() {
     <div className="fixed inset-x-0 top-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex flex-col overflow-hidden bg-background pt-safe lg:static lg:z-auto lg:h-auto lg:overflow-visible lg:bg-transparent lg:pt-0">
       <div className="flex min-h-0 flex-1 flex-col gap-3 p-3 sm:p-4 landscape:flex-row landscape:gap-4 lg:h-auto lg:flex-row lg:gap-6 lg:p-0">
         <div className="relative flex min-h-0 flex-1 flex-col gap-3 landscape:min-w-0">
-          <ScannerHeader />
+          <ScannerHeader gate={gate} />
 
           <div className="relative min-h-[45vh] flex-1 lg:min-h-[560px] landscape:min-h-0">
             <ScannerCamera
@@ -213,7 +229,12 @@ export default function VolunteerScanPage() {
           </div>
         </div>
 
-        <ScanSidePanel outcome={outcome} onReturn={returnToScan} />
+        <ScanSidePanel
+          outcome={outcome}
+          onReturn={returnToScan}
+          entered={entered}
+          entries={entries}
+        />
       </div>
 
       <div className="shrink-0 p-3 sm:p-4 lg:hidden">

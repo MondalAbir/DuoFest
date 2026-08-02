@@ -52,6 +52,13 @@ enum Permission: string
     // Activity logs
     case ACTIVITY_LOG_VIEW_ANY = 'activity_log.view_any';
 
+    // Payments / transactions
+    case PAYMENT_VIEW_ANY = 'payment.view_any';
+    case PAYMENT_CREATE = 'payment.create';
+
+    // Reports
+    case REPORT_VIEW_ANY = 'report.view_any';
+
     // Admin
     case ADMIN_ACCESS = 'admin.access';
 

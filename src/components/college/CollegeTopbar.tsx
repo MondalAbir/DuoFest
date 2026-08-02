@@ -1,7 +1,6 @@
-import { useState } from "react";
 import { Building2, Check, ChevronDown, Menu, Search } from "lucide-react";
 import { motion } from "framer-motion";
-import { collegeOptions } from "@/data/college/dashboard";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -27,7 +26,8 @@ export function CollegeTopbar({
   onOpenSearch,
   className,
 }: CollegeTopbarProps) {
-  const [college, setCollege] = useState(collegeOptions[0]);
+  const { user } = useAuth();
+  const college = user?.college?.name ?? "My College";
 
   return (
     <motion.header
@@ -72,19 +72,13 @@ export function CollegeTopbar({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-64">
           <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
-            Switch college
+            Current college
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {collegeOptions.map((option) => (
-            <DropdownMenuItem
-              key={option}
-              className="cursor-pointer"
-              onClick={() => setCollege(option)}
-            >
-              <span className="flex-1 truncate">{option}</span>
-              {option === college && <Check className="h-4 w-4 text-primary" />}
-            </DropdownMenuItem>
-          ))}
+          <DropdownMenuItem className="cursor-pointer">
+            <span className="flex-1 truncate">{college}</span>
+            <Check className="h-4 w-4 text-primary" />
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -98,7 +92,7 @@ export function CollegeTopbar({
         >
           <Search className="h-4 w-4 shrink-0" />
           <span className="hidden min-w-0 flex-1 truncate text-sm font-normal text-muted-foreground sm:block">
-            Search events, registrations, volunteers…
+            Search events, registrations…
           </span>
           <kbd className="ml-auto hidden rounded-md border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:block">
             ⌘K

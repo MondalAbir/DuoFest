@@ -4,8 +4,6 @@ import {
   ArrowLeft,
   Building2,
   Calendar,
-  CheckCircle2,
-  Clock3,
   Copy,
   Download,
   HandCoins,
@@ -20,12 +18,19 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
-import { events } from "@/data/events";
 import {
-  getEventDetails,
-  type EventSponsor,
-  type EventTimelineItem,
-} from "@/data/eventDetails";
+  useDeleteEvent,
+  useEvent,
+  useEventVolunteers,
+  useRegistrations,
+  useTransactions,
+} from "@/lib/hooks";
+import {
+  adaptEvent,
+  adaptRegistration,
+  adaptVolunteer,
+} from "@/lib/adapters";
+import type { EventMedia, EventSponsor as ApiSponsor, FestEvent } from "@/lib/api/types";
 import type {
   DashboardStat,
   Registration,
@@ -38,8 +43,11 @@ import {
   initials,
 } from "@/utils/format";
 import { cn } from "@/utils/cn";
+import { toastApiError, toastSuccess } from "@/lib/toast";
+import { CHART_COLORS } from "@/utils/constants";
 import { EmptyState } from "@/components/common/EmptyState";
 import { PageHeader } from "@/components/common/PageHeader";
+import { PageLoader } from "@/components/common/PageLoader";
 import { StatCard } from "@/components/common/StatCard";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { UserAvatar } from "@/components/common/UserAvatar";
@@ -48,18 +56,9 @@ import { RevenueDonutChart } from "@/components/charts/RevenueDonutChart";
 import { ChartCard } from "@/components/charts/ChartCard";
 import { DataTable, type DataTableColumn } from "@/components/tables/DataTable";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 const TABS = [
   { key: "overview", label: "Overview", icon: LayoutDashboard },
-  { key: "timeline", label: "Timeline", icon: Clock3 },
   { key: "registrations", label: "Registrations", icon: Ticket },
   { key: "volunteers", label: "Volunteers", icon: Users },
   { key: "revenue", label: "Revenue", icon: Wallet },
@@ -116,18 +115,6 @@ const REG_COLUMNS: DataTableColumn<Registration>[] = [
     hideBelow: "md",
     cell: (reg) => (
       <span className="text-sm text-muted-foreground">{reg.collegeName}</span>
-    ),
-  },
-  {
-    key: "amount",
-    header: "Amount",
-    align: "right",
-    sortable: true,
-    sortValue: (reg) => reg.amount,
-    cell: (reg) => (
-      <span className="text-sm font-medium text-foreground">
-        {formatCurrency(reg.amount)}
-      </span>
     ),
   },
   {
@@ -188,120 +175,78 @@ const VOL_COLUMNS: DataTableColumn<Volunteer>[] = [
   },
 ];
 
-function TimelineList({ items }: { items: EventTimelineItem[] }) {
-  return (
-    <ol className="relative space-y-0">
-      {items.map((item, index) => {
-        const isLast = index === items.length - 1;
-        return (
-          <li key={item.id} className="relative flex gap-4 pb-8 last:pb-0">
-            {!isLast && (
-              <span
-                className={cn(
-                  "absolute left-[15px] top-8 h-full w-px",
-                  item.status === "done" ? "bg-primary/40" : "bg-border",
-                )}
-              />
-            )}
-            <span
-              className={cn(
-                "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2",
-                item.status === "done" &&
-                  "border-primary/60 bg-primary/10 text-primary",
-                item.status === "current" &&
-                  "border-primary bg-primary text-primary-foreground",
-                item.status === "upcoming" &&
-                  "border-border bg-muted/40 text-muted-foreground",
-              )}
-            >
-              {item.status === "done" ? (
-                <CheckCircle2 className="h-4 w-4" />
-              ) : item.status === "current" ? (
-                <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-current" />
-              ) : (
-                <span className="h-2 w-2 rounded-full bg-current" />
-              )}
-            </span>
-            <div className="min-w-0 flex-1 pt-1">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-foreground">
-                  {item.title}
-                </p>
-                <span className="text-xs text-muted-foreground">{item.date}</span>
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {item.description}
-              </p>
-            </div>
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
-function SponsorsGrid({ sponsors }: { sponsors: EventSponsor[] }) {
-  const tierStyles: Record<EventSponsor["tier"], string> = {
+function SponsorsGrid({ sponsors }: { sponsors: ApiSponsor[] }) {
+  const tierStyles: Record<string, string> = {
     Platinum: "bg-primary/10 text-primary",
     Gold: "bg-warning/10 text-warning",
     Silver: "bg-muted text-muted-foreground",
   };
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {sponsors.map((sponsor) => (
-        <div
-          key={sponsor.id}
-          className="flex items-center gap-4 rounded-2xl border border-border bg-card p-5 shadow-card transition-shadow duration-300 hover:shadow-card-hover"
-        >
-          <span
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-base font-bold text-white"
-            style={{ backgroundColor: sponsor.color }}
+      {sponsors.map((sponsor) => {
+        const tier = sponsor.tier ?? "Silver";
+        const style = tierStyles[tier] ?? tierStyles.Silver;
+        return (
+          <div
+            key={sponsor.id}
+            className="flex items-center gap-4 rounded-2xl border border-border bg-card p-5 shadow-card transition-shadow duration-300 hover:shadow-card-hover"
           >
-            {initials(sponsor.name)}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-foreground">
-              {sponsor.name}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {formatCurrency(sponsor.amount)} · {sponsor.tier} sponsor
-            </p>
+            <span
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-base font-bold text-white"
+              style={{ backgroundColor: colorFor(sponsor.name) }}
+            >
+              {initials(sponsor.name)}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-foreground">
+                {sponsor.name}
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{tier} sponsor</p>
+            </div>
+            <span
+              className={cn(
+                "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium",
+                style,
+              )}
+            >
+              {tier}
+            </span>
           </div>
-          <span
-            className={cn(
-              "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium",
-              tierStyles[sponsor.tier],
-            )}
-          >
-            {sponsor.tier}
-          </span>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
-function GalleryGrid({ eventId }: { eventId: string }) {
-  const details = getEventDetails(events.find((e) => e.id === eventId)!);
+function GalleryGrid({ media }: { media: EventMedia[] }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {details.gallery.map((item) => (
+      {media.map((item) => (
         <div
           key={item.id}
           className="group relative aspect-[16/10] overflow-hidden rounded-2xl border border-border"
         >
-          <div
-            className={cn(
-              "absolute inset-0 bg-gradient-to-br transition-transform duration-500 group-hover:scale-105",
-              item.gradient,
-            )}
-          >
-            <div className="flex h-full w-full items-center justify-center text-3xl font-bold text-white/40">
-              {initials(item.label)}
+          {item.url ? (
+            <img
+              src={item.url}
+              alt={item.alt_text ?? ""}
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            />
+          ) : (
+            <div
+              className={cn(
+                "absolute inset-0 bg-gradient-to-br from-primary/20 via-info/20 to-fuchsia-500/20 transition-transform duration-500 group-hover:scale-105",
+              )}
+            >
+              <div className="flex h-full w-full items-center justify-center text-3xl font-bold text-white/40">
+                {initials(item.alt_text ?? "Media")}
+              </div>
             </div>
-          </div>
+          )}
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-            <p className="text-sm font-medium text-white">{item.label}</p>
+            <p className="text-sm font-medium text-white">
+              {item.alt_text ?? "Gallery photo"}
+            </p>
           </div>
         </div>
       ))}
@@ -313,12 +258,11 @@ function exportRegistrationsCsv(
   regs: Registration[],
   eventName: string,
 ): void {
-  const header = ["Student", "Email", "College", "Amount", "Date", "Status"];
+  const header = ["Student", "Email", "College", "Date", "Status"];
   const rows = regs.map((reg) => [
     reg.studentName,
     reg.email,
     reg.collegeName,
-    String(reg.amount),
     reg.date,
     reg.status,
   ]);
@@ -341,16 +285,52 @@ export default function EventDetailsPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<TabKey>("overview");
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [duplicateOpen, setDuplicateOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
 
-  const event = events.find((item) => item.id === eventId);
-  const details = useMemo(
-    () => (event ? getEventDetails(event) : null),
+  const numericId = Number(eventId);
+
+  const { data: event, isLoading: eventLoading } = useEvent(numericId);
+  const { data: registrationsData } = useRegistrations({
+    event_id: numericId,
+    perPage: 100,
+  });
+  const { data: transactionsData } = useTransactions({
+    event_id: numericId,
+    perPage: 100,
+  });
+  const { data: volunteersData } = useEventVolunteers(numericId);
+
+  const displayEvent = useMemo(
+    () => (event ? adaptEvent(event) : null),
     [event],
   );
 
-  if (!event || !details) {
+  const regs = useMemo(
+    () => (registrationsData?.items ?? []).map(adaptRegistration),
+    [registrationsData],
+  );
+
+  const vols = useMemo(
+    () => (volunteersData ?? []).map(adaptVolunteer),
+    [volunteersData],
+  );
+
+  const transactions = transactionsData?.items ?? [];
+
+  const totalRevenue = useMemo(
+    () =>
+      transactions
+        .filter((transaction) => transaction.status === "completed")
+        .reduce((sum, transaction) => sum + transaction.amount, 0),
+    [transactions],
+  );
+
+  const deleteMutation = useDeleteEvent();
+
+  if (eventLoading) {
+    return <PageLoader />;
+  }
+
+  if (!event || !displayEvent) {
     return (
       <div className="space-y-6">
         <PageHeader
@@ -372,30 +352,35 @@ export default function EventDetailsPage() {
     );
   }
 
-  const regs = details.registrations;
-  const vols = details.volunteers;
+  const sponsors = event.sponsors ?? [];
+  const gallery = event.gallery ?? [];
+  const capacity = event.capacity ?? 0;
 
-  const confirmedRegs = regs.filter((reg) => reg.status === "confirmed");
-  const collectedAmount = confirmedRegs.reduce((sum, reg) => sum + reg.amount, 0);
-  const activeVols = vols.filter((vol) => vol.status === "active");
+  const confirmedRegs = regs.filter((reg) => reg.status === "confirmed").length;
+  const pendingRegs = regs.filter((reg) => reg.status === "pending").length;
+  const activeVols = vols.filter((vol) => vol.status === "active").length;
   const totalHours = vols.reduce((sum, vol) => sum + vol.hours, 0);
-  const capacityRate = Math.min(100, Math.round((event.registrations / details.capacity) * 100));
+  const capacityRate = capacity
+    ? Math.min(100, Math.round((event.registration_count / capacity) * 100))
+    : 0;
+
+  const liveDelta = { value: 0, direction: "up" as const, label: "live" };
 
   const overviewStats: DashboardStat[] = [
     {
       id: "evd-registrations",
       title: "Total Registrations",
-      value: event.registrations,
-      delta: { value: 12.4, direction: "up", label: "vs last week" },
+      value: event.registration_count,
+      delta: liveDelta,
       icon: "ticket",
       tint: "primary",
     },
     {
       id: "evd-revenue",
       title: "Revenue",
-      value: event.revenue,
+      value: totalRevenue,
       prefix: "$",
-      delta: { value: 8.7, direction: "up", label: "vs last week" },
+      delta: liveDelta,
       icon: "dollar",
       tint: "success",
     },
@@ -403,7 +388,7 @@ export default function EventDetailsPage() {
       id: "evd-volunteers",
       title: "Volunteers",
       value: vols.length,
-      delta: { value: 3.2, direction: "up", label: "vs last week" },
+      delta: liveDelta,
       icon: "users",
       tint: "info",
     },
@@ -412,7 +397,7 @@ export default function EventDetailsPage() {
       title: "Capacity Used",
       value: capacityRate,
       suffix: "%",
-      delta: { value: 1.8, direction: "up", label: "vs last week" },
+      delta: liveDelta,
       icon: "wallet",
       tint: "warning",
     },
@@ -423,32 +408,32 @@ export default function EventDetailsPage() {
       id: "evd-reg-total",
       title: "Registrations",
       value: regs.length,
-      delta: { value: 12.4, direction: "up", label: "vs last week" },
+      delta: liveDelta,
       icon: "ticket",
       tint: "primary",
     },
     {
       id: "evd-reg-confirmed",
       title: "Confirmed",
-      value: confirmedRegs.length,
-      delta: { value: 9.1, direction: "up", label: "vs last week" },
+      value: confirmedRegs,
+      delta: liveDelta,
       icon: "check-circle",
       tint: "success",
     },
     {
       id: "evd-reg-pending",
       title: "Pending",
-      value: regs.filter((reg) => reg.status === "pending").length,
-      delta: { value: 2.3, direction: "down", label: "vs last week" },
+      value: pendingRegs,
+      delta: liveDelta,
       icon: "users",
       tint: "warning",
     },
     {
       id: "evd-reg-collected",
       title: "Collected",
-      value: collectedAmount,
+      value: totalRevenue,
       prefix: "$",
-      delta: { value: 6.5, direction: "up", label: "vs last week" },
+      delta: liveDelta,
       icon: "dollar",
       tint: "success",
     },
@@ -459,15 +444,15 @@ export default function EventDetailsPage() {
       id: "evd-vol-total",
       title: "Volunteers",
       value: vols.length,
-      delta: { value: 4.2, direction: "up", label: "vs last week" },
+      delta: liveDelta,
       icon: "users",
       tint: "primary",
     },
     {
       id: "evd-vol-active",
       title: "Active",
-      value: activeVols.length,
-      delta: { value: 2.8, direction: "up", label: "vs last week" },
+      value: activeVols,
+      delta: liveDelta,
       icon: "check-circle",
       tint: "success",
     },
@@ -475,7 +460,7 @@ export default function EventDetailsPage() {
       id: "evd-vol-onboarding",
       title: "Onboarding",
       value: vols.filter((vol) => vol.status === "onboarding").length,
-      delta: { value: 1.1, direction: "up", label: "vs last week" },
+      delta: liveDelta,
       icon: "ticket",
       tint: "info",
     },
@@ -483,23 +468,42 @@ export default function EventDetailsPage() {
       id: "evd-vol-hours",
       title: "Total Hours",
       value: totalHours,
-      delta: { value: 7.6, direction: "up", label: "vs last week" },
+      delta: liveDelta,
       icon: "wallet",
       tint: "warning",
     },
   ];
 
   const handleDelete = async () => {
-    setIsDeleting(true);
-    await new Promise((resolve) => setTimeout(resolve, 600));
-    setIsDeleting(false);
-    navigate("/admin/events");
+    try {
+      await deleteMutation.mutateAsync(event.id);
+      toastSuccess("Event deleted.");
+      navigate("/admin/events");
+    } catch (error) {
+      toastApiError(error, "Unable to delete event.");
+    }
   };
 
-  const totalSponsorship = details.sponsors.reduce(
-    (sum, sponsor) => sum + sponsor.amount,
-    0,
-  );
+  const revenueSlices = useMemo(() => {
+    const byMethod = new Map<string, number>();
+    for (const transaction of transactions) {
+      if (transaction.status !== "completed") continue;
+      const method = transaction.payment_method ?? "Other";
+      byMethod.set(method, (byMethod.get(method) ?? 0) + transaction.amount);
+    }
+    const palette = [
+      CHART_COLORS.primary,
+      CHART_COLORS.info,
+      CHART_COLORS.success,
+      CHART_COLORS.warning,
+      CHART_COLORS.danger,
+    ];
+    return [...byMethod.entries()].map(([name, value], index) => ({
+      name,
+      value,
+      color: palette[index % palette.length],
+    }));
+  }, [transactions]);
 
   return (
     <div className="space-y-6">
@@ -513,13 +517,13 @@ export default function EventDetailsPage() {
       </Button>
 
       <div className="relative overflow-hidden rounded-2xl border border-border">
-        <div className={cn("absolute inset-0 bg-gradient-to-br", event.gradient)} />
+        <div className={cn("absolute inset-0 bg-gradient-to-br", displayEvent.gradient)} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/10" />
         <div
           className="absolute -bottom-16 -right-10 select-none text-[220px] font-black leading-none text-white/10"
           aria-hidden="true"
         >
-          {event.name[0]}
+          {displayEvent.name[0]}
         </div>
 
         <div className="absolute right-4 top-4 flex flex-wrap justify-end gap-2">
@@ -534,7 +538,7 @@ export default function EventDetailsPage() {
           <Button
             variant="ghost"
             className="gap-2 border border-white/20 bg-white/15 text-white backdrop-blur transition-colors hover:bg-white/25 hover:text-white"
-            onClick={() => setDuplicateOpen(true)}
+            onClick={() => navigate("/admin/events/create")}
           >
             <Copy className="h-4 w-4" />
             <span className="hidden sm:inline">Duplicate</span>
@@ -542,7 +546,7 @@ export default function EventDetailsPage() {
           <Button
             variant="ghost"
             className="gap-2 border border-white/20 bg-white/15 text-white backdrop-blur transition-colors hover:bg-white/25 hover:text-white"
-            onClick={() => exportRegistrationsCsv(regs, event.name)}
+            onClick={() => exportRegistrationsCsv(regs, event.title)}
           >
             <Download className="h-4 w-4" />
             <span className="hidden sm:inline">Export</span>
@@ -560,25 +564,25 @@ export default function EventDetailsPage() {
         <div className="relative flex min-h-[260px] flex-col justify-end gap-4 p-6 sm:p-8">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
-              {event.category}
+              {displayEvent.category}
             </span>
-            <StatusBadge status={event.status} />
+            <StatusBadge status={displayEvent.status} />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-white sm:text-4xl">
-            {event.name}
+            {event.title}
           </h1>
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-white/85">
             <span className="flex items-center gap-1.5">
               <Building2 className="h-4 w-4" />
-              {event.collegeName}
+              {event.college?.name}
             </span>
             <span className="flex items-center gap-1.5">
               <Calendar className="h-4 w-4" />
-              {formatDate(event.date)}
+              {formatDate(event.starts_at ?? event.created_at ?? "")}
             </span>
             <span className="flex items-center gap-1.5">
               <MapPin className="h-4 w-4" />
-              {details.venue}, {details.city}
+              {event.venue ?? "TBA"}, {event.college?.city ?? ""}
             </span>
           </div>
         </div>
@@ -625,7 +629,7 @@ export default function EventDetailsPage() {
                   About this event
                 </h3>
                 <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                  {details.description}
+                  {event.description ?? "No description provided."}
                 </p>
               </div>
 
@@ -635,14 +639,12 @@ export default function EventDetailsPage() {
                 </h3>
                 <dl className="mt-4 grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
                   {[
-                    { label: "Event date", value: formatDate(event.date) },
-                    { label: "Venue", value: details.venue },
-                    { label: "Address", value: details.address },
-                    { label: "Host college", value: event.collegeName },
-                    { label: "Category", value: event.category },
-                    { label: "Timezone", value: details.timezone },
-                    { label: "Capacity", value: formatNumber(details.capacity) },
-                    { label: "Organizer", value: details.organizer },
+                    { label: "Event date", value: formatDate(event.starts_at ?? "") },
+                    { label: "Venue", value: event.venue ?? "TBA" },
+                    { label: "Host college", value: event.college?.name ?? "—" },
+                    { label: "Category", value: event.category?.name ?? "—" },
+                    { label: "Capacity", value: formatNumber(capacity) },
+                    { label: "Organizer", value: event.organizer?.name ?? "—" },
                   ].map((row) => (
                     <div
                       key={row.label}
@@ -667,16 +669,16 @@ export default function EventDetailsPage() {
                 </h3>
                 <div className="mt-4 flex items-center gap-3">
                   <UserAvatar
-                    name={details.organizer}
-                    color={colorFor(details.organizer)}
+                    name={event.organizer?.name ?? "—"}
+                    color={colorFor(event.organizer?.name ?? "—")}
                     size="lg"
                   />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-foreground">
-                      {details.organizer}
+                      {event.organizer?.name ?? "—"}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {details.organizerEmail}
+                      {event.organizer?.email}
                     </p>
                   </div>
                 </div>
@@ -698,18 +700,12 @@ export default function EventDetailsPage() {
                   />
                 </div>
                 <p className="mt-3 text-xs text-muted-foreground">
-                  {formatNumber(event.registrations)} of{" "}
-                  {formatNumber(details.capacity)} seats filled
+                  {formatNumber(event.registration_count)} of{" "}
+                  {formatNumber(capacity)} seats filled
                 </p>
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {tab === "timeline" && (
-        <div className="mx-auto max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-card sm:p-8">
-          <TimelineList items={details.timeline} />
         </div>
       )}
 
@@ -751,12 +747,9 @@ export default function EventDetailsPage() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <ChartCard
             title="Revenue breakdown"
-            subtitle="Income from all sources for this event"
+            subtitle="Income by payment method"
           >
-            <RevenueDonutChart
-              data={details.revenueBreakdown}
-              centerLabel="Revenue"
-            />
+            <RevenueDonutChart data={revenueSlices} centerLabel="Revenue" />
           </ChartCard>
 
           <ChartCard
@@ -764,48 +757,54 @@ export default function EventDetailsPage() {
             subtitle="Source-wise collection and share"
             action={
               <span className="rounded-full bg-success/10 px-3 py-1 text-xs font-semibold text-success">
-                {formatCurrency(event.revenue)}
+                {formatCurrency(totalRevenue)}
               </span>
             }
           >
             <div className="space-y-1">
-              {details.revenueBreakdown.map((slice) => {
-                const percent =
-                  event.revenue > 0
-                    ? Math.round((slice.value / event.revenue) * 100)
-                    : 0;
-                return (
-                  <div
-                    key={slice.name}
-                    className="flex items-center justify-between gap-4 rounded-xl border border-border bg-muted/20 px-4 py-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span
-                        className="h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: slice.color }}
-                      />
-                      <span className="text-sm text-muted-foreground">
-                        {slice.name}
-                      </span>
+              {revenueSlices.length === 0 ? (
+                <p className="py-6 text-sm text-muted-foreground">
+                  No completed payments yet.
+                </p>
+              ) : (
+                revenueSlices.map((slice) => {
+                  const percent =
+                    totalRevenue > 0
+                      ? Math.round((slice.value / totalRevenue) * 100)
+                      : 0;
+                  return (
+                    <div
+                      key={slice.name}
+                      className="flex items-center justify-between gap-4 rounded-xl border border-border bg-muted/20 px-4 py-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: slice.color }}
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          {slice.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-sm font-semibold text-foreground">
+                          {formatCurrency(slice.value)}
+                        </span>
+                        <span className="w-11 text-right text-xs text-muted-foreground">
+                          {percent}%
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-sm font-semibold text-foreground">
-                        {formatCurrency(slice.value)}
-                      </span>
-                      <span className="w-11 text-right text-xs text-muted-foreground">
-                        {percent}%
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
 
               <div className="flex items-center justify-between gap-4 border-t border-border px-1 pt-3">
                 <span className="text-sm font-medium text-foreground">
                   Total revenue
                 </span>
                 <span className="text-base font-bold text-foreground">
-                  {formatCurrency(event.revenue)}
+                  {formatCurrency(totalRevenue)}
                 </span>
               </div>
             </div>
@@ -817,18 +816,27 @@ export default function EventDetailsPage() {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {details.gallery.length} photos · captured by the media team
+              {gallery.length} photos · captured by the media team
             </p>
             <Button
               variant="outline"
               className="gap-2"
-              onClick={() => exportRegistrationsCsv(regs, event.name)}
+              onClick={() => exportRegistrationsCsv(regs, event.title)}
             >
               <Download className="h-4 w-4" />
               Export
             </Button>
           </div>
-          <GalleryGrid eventId={event.id} />
+          {gallery.length === 0 ? (
+            <div className="rounded-2xl border border-border bg-card shadow-card">
+              <EmptyState
+                title="No media yet"
+                description="Photos uploaded for this event will appear here."
+              />
+            </div>
+          ) : (
+            <GalleryGrid media={gallery} />
+          )}
         </div>
       )}
 
@@ -840,15 +848,24 @@ export default function EventDetailsPage() {
                 Total sponsorship raised
               </p>
               <p className="mt-1 text-3xl font-bold tracking-tight text-foreground">
-                {formatCurrency(totalSponsorship)}
+                {formatCurrency(0)}
               </p>
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <HandCoins className="h-4 w-4 text-primary" />
-              {details.sponsors.length} sponsors backing this event
+              {sponsors.length} sponsors backing this event
             </div>
           </div>
-          <SponsorsGrid sponsors={details.sponsors} />
+          {sponsors.length === 0 ? (
+            <div className="rounded-2xl border border-border bg-card shadow-card">
+              <EmptyState
+                title="No sponsors yet"
+                description="Sponsors for this event will appear here."
+              />
+            </div>
+          ) : (
+            <SponsorsGrid sponsors={sponsors} />
+          )}
         </div>
       )}
 
@@ -856,59 +873,11 @@ export default function EventDetailsPage() {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title="Delete Event"
-        description={`This will permanently remove "${event.name}" along with its registrations, volunteers, and media. This action cannot be undone.`}
+        description={`This will permanently remove "${event.title}" along with its registrations, volunteers, and media. This action cannot be undone.`}
         confirmLabel="Delete Event"
         confirmText="DELETE"
         onConfirm={handleDelete}
       />
-
-      <Dialog
-        open={duplicateOpen}
-        onOpenChange={(next) => {
-          if (!next) setDuplicateOpen(false);
-        }}
-      >
-        <DialogContent className="max-w-md text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <Copy className="h-8 w-8" />
-          </div>
-          <DialogHeader className="items-center text-center">
-            <DialogTitle className="text-lg">Event duplicated</DialogTitle>
-            <DialogDescription>
-              <span className="block font-medium text-foreground">
-                {event.name} (Copy)
-              </span>
-              <span className="mt-1.5 block">
-                A duplicate has been saved as a draft. You can edit it before
-                publishing.
-              </span>
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:justify-center">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setDuplicateOpen(false);
-                navigate("/admin/events/create");
-              }}
-            >
-              Edit Draft
-            </Button>
-            <Button onClick={() => setDuplicateOpen(false)}>Done</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {isDeleting && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-3.5 shadow-glass">
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            <span className="text-sm font-medium text-foreground">
-              Deleting event…
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

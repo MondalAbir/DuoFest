@@ -32,6 +32,12 @@ return [
         'forgot_password_decay' => env('API_RATE_LIMIT_FORGOT_PASSWORD_DECAY', 1),
         'api' => env('API_RATE_LIMIT_API', 60),
         'api_decay' => env('API_RATE_LIMIT_API_DECAY', 1),
+        'otp' => env('API_RATE_LIMIT_OTP', 5),
+        'otp_decay' => env('API_RATE_LIMIT_OTP_DECAY', 1),
+    ],
+
+    'registration' => [
+        'otp_ttl_minutes' => (int) env('REGISTRATION_OTP_TTL_MINUTES', 5),
     ],
 
     'defaults' => [

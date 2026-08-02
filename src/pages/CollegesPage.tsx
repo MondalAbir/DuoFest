@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Download, Plus } from "lucide-react";
-import { colleges } from "@/data/colleges";
+import { useColleges } from "@/lib/hooks";
+import { adaptCollege } from "@/lib/adapters";
 import type { DashboardStat } from "@/types";
 import { searchInArray, filterByStatus } from "@/utils/filter";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -21,6 +22,9 @@ export default function CollegesPage() {
   const [addCollegeOpen, setAddCollegeOpen] = useState(false);
   const [editingCollege, setEditingCollege] = useState<College | null>(null);
   const [selectedCollege, setSelectedCollege] = useState<College | null>(null);
+
+  const { data, isLoading } = useColleges({ perPage: 100 });
+  const colleges = (data?.items ?? []).map(adaptCollege);
 
   const stats = useMemo<DashboardStat[]>(() => {
     const active = colleges.filter((c) => c.status === "active").length;
@@ -60,7 +64,7 @@ export default function CollegesPage() {
         tint: "danger",
       },
     ];
-  }, []);
+  }, [colleges]);
 
   const filtered = useMemo(() => {
     const searched = searchInArray(colleges, query, [
@@ -70,7 +74,7 @@ export default function CollegesPage() {
       "adminName",
     ]);
     return filterByStatus(searched, "status", status);
-  }, [query, status]);
+  }, [query, status, colleges]);
 
   return (
     <div className="space-y-6">

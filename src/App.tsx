@@ -5,6 +5,9 @@ import { CollegeLayout } from "@/layouts/CollegeLayout";
 import { VolunteerLayout } from "@/layouts/VolunteerLayout";
 import { LandingLayout } from "@/layouts/LandingLayout";
 import { PageLoader } from "@/components/common/PageLoader";
+import { ProtectedRoute } from "@/components/routing/ProtectedRoute";
+import { LoginPage } from "@/pages/LoginPage";
+import { UnauthorizedPage } from "@/pages/UnauthorizedPage";
 
 const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
 const CollegesPage = lazy(() => import("@/pages/CollegesPage"));
@@ -127,7 +130,19 @@ export default function App() {
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
-        <Route path="/admin" element={<DashboardLayout />}>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/login/college" element={<LoginPage portal="college" />} />
+        <Route path="/login/volunteer" element={<LoginPage portal="volunteer" />} />
+        <Route path="/unauthorized" element={<UnauthorizedPage />} />
+
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute roles={["super_admin", "event_manager"]}>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<DashboardPage />} />
           <Route path="colleges" element={<CollegesPage />} />
           <Route path="admins" element={<CollegeAdminsPage />} />
@@ -145,7 +160,15 @@ export default function App() {
           <Route path="activity-logs" element={<ActivityLogsPage />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Route>
-        <Route path="/admin/college" element={<CollegeLayout />}>
+
+        <Route
+          path="/admin/college"
+          element={
+            <ProtectedRoute roles={["super_admin", "college_admin", "event_manager"]}>
+              <CollegeLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<CollegeDashboardPage />} />
           <Route path="events" element={<CollegeAllEventsPage />} />
           <Route path="events/create" element={<CollegeCreateEventPage />} />
@@ -165,7 +188,15 @@ export default function App() {
           <Route path="logout" element={<CollegePlaceholderPage />} />
           <Route path="*" element={<Navigate to="/admin/college" replace />} />
         </Route>
-        <Route path="/admin/volunteer" element={<VolunteerLayout />}>
+
+        <Route
+          path="/admin/volunteer"
+          element={
+            <ProtectedRoute roles={["super_admin", "volunteer"]}>
+              <VolunteerLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Navigate to="scan" replace />} />
           <Route path="dashboard" element={<VolunteerDashboardPage />} />
           <Route path="scan" element={<VolunteerScanPage />} />
@@ -176,6 +207,7 @@ export default function App() {
             element={<Navigate to="/admin/volunteer/scan" replace />}
           />
         </Route>
+
         <Route element={<LandingLayout />}>
           <Route index element={<HomePage />} />
           <Route path="events" element={<EventsLandingPage />} />
@@ -187,6 +219,7 @@ export default function App() {
           <Route path="about" element={<AboutPage />} />
           <Route path="contact" element={<ContactPage />} />
         </Route>
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>

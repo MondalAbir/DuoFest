@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { ArrowUpRight, Wallet } from "lucide-react";
-import { payments } from "@/data/payments";
+import { useTransactions } from "@/lib/hooks";
+import { adaptPayment } from "@/lib/adapters";
 import { formatCurrency, formatDate } from "@/utils/format";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import type { Payment } from "@/types";
@@ -52,6 +53,9 @@ const columns: DataTableColumn<Payment>[] = [
 ];
 
 export function RecentPaymentsWidget() {
+  const { data, isLoading } = useTransactions({ perPage: 6 });
+  const payments = (data?.items ?? []).map(adaptPayment);
+
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-shadow duration-300 hover:shadow-card-hover">
       <div className="flex items-center justify-between px-6 pt-5">
@@ -79,6 +83,7 @@ export function RecentPaymentsWidget() {
           rowKey={(payment) => payment.id}
           pageSize={6}
           compact
+          loading={isLoading}
         />
       </div>
     </div>

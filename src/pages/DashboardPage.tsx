@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Download } from "lucide-react";
 import { motion } from "framer-motion";
-import { dashboardStats } from "@/data/dashboard";
-import { registrationTrends, revenueBreakdown, collegeGrowth } from "@/data/charts";
+import { useAuth } from "@/context/AuthContext";
+import { useAnalytics } from "@/lib/hooks";
+import { adaptAnalytics } from "@/lib/adapters";
 import { StatCard } from "@/components/common/StatCard";
 import { WelcomeBanner } from "@/components/dashboard/WelcomeBanner";
 import { RecentCollegesWidget } from "@/components/dashboard/RecentCollegesWidget";
@@ -13,7 +14,7 @@ import { ChartCard } from "@/components/charts/ChartCard";
 import { RegistrationAreaChart } from "@/components/charts/RegistrationAreaChart";
 import { RevenueDonutChart } from "@/components/charts/RevenueDonutChart";
 import { CollegeGrowthBarChart } from "@/components/charts/CollegeGrowthBarChart";
-import { StatCardSkeleton, ChartSkeleton, TableSkeleton } from "@/components/common/Skeletons";
+import { StatCardSkeleton, ChartSkeleton } from "@/components/common/Skeletons";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -23,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type RangeKey = keyof typeof registrationTrends;
+type RangeKey = "today" | "week" | "month" | "year";
 
 const RANGE_OPTIONS: Array<{ value: RangeKey; label: string }> = [
   { value: "today", label: "Today" },
@@ -33,13 +34,10 @@ const RANGE_OPTIONS: Array<{ value: RangeKey; label: string }> = [
 ];
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [range, setRange] = useState<RangeKey>("month");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const timeout = setTimeout(() => setLoading(false), 750);
-    return () => clearTimeout(timeout);
-  }, []);
+  const { data, isLoading } = useAnalytics();
+  const analytics = data ? adaptAnalytics(data) : null;
 
   return (
     <div className="space-y-6">
@@ -55,23 +53,23 @@ export default function DashboardPage() {
           Dashboard
         </h1>
         <p className="text-sm text-muted-foreground">
-          Welcome back, Super Admin. Here's what's happening today.
+          Welcome back{user?.name ? `, ${user.name}` : ""}. Here's what's happening today.
         </p>
       </motion.div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {loading
+        {isLoading
           ? Array.from({ length: 6 }).map((_, index) => (
               <StatCardSkeleton key={index} />
             ))
-          : dashboardStats.map((stat, index) => (
+          : (analytics?.stats ?? []).map((stat, index) => (
               <StatCard key={stat.id} stat={stat} index={index} />
             ))}
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <div className="xl:col-span-2">
-          {loading ? (
+          {isLoading ? (
             <ChartSkeleton />
           ) : (
             <ChartCard
@@ -98,81 +96,65 @@ export default function DashboardPage() {
                 </Select>
               }
             >
-              <RegistrationAreaChart data={registrationTrends[range]} />
+              <RegistrationAreaChart
+                data={analytics?.registrationTrends[range] ?? []}
+              />
             </ChartCard>
           )}
         </div>
         <div>
-          {loading ? (
+          {isLoading ? (
             <ChartSkeleton />
           ) : (
             <ChartCard
               title="Revenue Overview"
-              subtitle="Income distribution this quarter"
+              subtitle="Income distribution by payment method"
             >
-              <RevenueDonutChart data={revenueBreakdown} />
+              <RevenueDonutChart data={analytics?.revenueBreakdown ?? []} />
             </ChartCard>
           )}
         </div>
       </div>
 
       <div>
-        {loading ? (
+        {isLoading ? (
           <ChartSkeleton />
         ) : (
           <ChartCard
             title="College Growth"
             subtitle="New colleges and students added per month"
           >
-            <CollegeGrowthBarChart data={collegeGrowth} />
+            <CollegeGrowthBarChart data={analytics?.collegeGrowth ?? []} />
           </ChartCard>
         )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
         <div className="lg:col-span-2 xl:col-span-2">
-          {loading ? (
-            <TableSkeleton />
-          ) : (
-            <RecentCollegesWidget />
-          )}
+          <RecentCollegesWidget />
         </div>
         <div>
-          {loading ? (
-            <TableSkeleton rows={4} />
-          ) : (
-            <LatestEventsWidget />
-          )}
+          <LatestEventsWidget />
         </div>
         <div className="lg:col-span-2 xl:col-span-2">
-          {loading ? (
-            <TableSkeleton />
-          ) : (
-            <RecentPaymentsWidget />
-          )}
+          <RecentPaymentsWidget />
         </div>
         <div>
-          {loading ? (
-            <TableSkeleton rows={5} />
-          ) : (
-            <PlatformActivityWidget />
-          )}
+          <PlatformActivityWidget />
         </div>
       </div>
 
-      {!loading && (
-        <div className="flex justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.print()}
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Export summary
-          </Button>
-        </div>
-      )}
+      <div className="flex justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => window.print()}
+          className="gap-2"
+        >
+          <Download className="h-4 w-4" />
+          Export summary
+        </Button>
+      </div>
     </div>
   );
 }
